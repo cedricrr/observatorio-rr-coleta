@@ -15,6 +15,9 @@ venv/
 /tmp/
 /data/backfill/
 
+# Logs de execução do backfill
+*.log
+
 # OS
 .DS_Store
 
