@@ -92,27 +92,40 @@ def backfill_listing(
     checkpoint: Checkpoint,
     pausa: float,
     dry_run: bool = False,
+    caminho_checkpoint: Path | None = None,
 ) -> Checkpoint:
-    """Modo listing: usa list_year da fonte e processa todas as edições por ano."""
-    for ano in anos:
-        mod = importlib.import_module(f"fontes.{fonte.discovery_module}")
-        for descoberta in mod.list_year(ano):
-            item_id = (
-                f"{fonte.codigo}-{descoberta['data_edicao']}-"
-                f"{descoberta.get('numero', '')}"
-            )
-            if ja_processado(checkpoint, item_id):
-                continue
-            if dry_run:
-                marcar_processado(checkpoint, item_id, "pulado_dedupe")
-                continue
-            try:
-                processar_descoberta(fonte, descoberta, r2)
-                marcar_processado(checkpoint, item_id, "sucesso")
-            except (requests.RequestException, RuntimeError) as e:
-                marcar_processado(checkpoint, item_id, "erro", str(e))
-            if pausa > 0:
-                time.sleep(pausa)
+    """Modo listing: usa list_year da fonte e processa todas as edições por ano.
+
+    Se `caminho_checkpoint` for fornecido, persiste após cada item processado
+    e em try/finally — interrupções e crashes preservam progresso para retomada.
+    """
+    try:
+        for ano in anos:
+            mod = importlib.import_module(f"fontes.{fonte.discovery_module}")
+            for descoberta in mod.list_year(ano):
+                item_id = (
+                    f"{fonte.codigo}-{descoberta['data_edicao']}-"
+                    f"{descoberta.get('numero', '')}"
+                )
+                if ja_processado(checkpoint, item_id):
+                    continue
+                if dry_run:
+                    marcar_processado(checkpoint, item_id, "pulado_dedupe")
+                    if caminho_checkpoint is not None:
+                        gravar_checkpoint(checkpoint, caminho_checkpoint)
+                    continue
+                try:
+                    processar_descoberta(fonte, descoberta, r2)
+                    marcar_processado(checkpoint, item_id, "sucesso")
+                except requests.RequestException as e:
+                    marcar_processado(checkpoint, item_id, "erro", str(e))
+                if caminho_checkpoint is not None:
+                    gravar_checkpoint(checkpoint, caminho_checkpoint)
+                if pausa > 0:
+                    time.sleep(pausa)
+    finally:
+        if caminho_checkpoint is not None:
+            gravar_checkpoint(checkpoint, caminho_checkpoint)
     return checkpoint
 
 
@@ -125,25 +138,38 @@ def backfill_daily(
     checkpoint: Checkpoint,
     pausa: float,
     dry_run: bool = False,
+    caminho_checkpoint: Path | None = None,
 ) -> Checkpoint:
-    """Modo daily: itera datas no intervalo e tenta descoberta+download em cada."""
-    for data in gerar_datas(de, ate, somente_uteis):
-        item_id = f"{fonte.codigo}-{data.isoformat()}"
-        if ja_processado(checkpoint, item_id):
-            continue
-        if dry_run:
-            marcar_processado(checkpoint, item_id, "pulado_dedupe")
-            continue
-        try:
-            resultado = processar_fonte(fonte, data, r2)
-            if resultado is None:
-                marcar_processado(checkpoint, item_id, "sem_diario")
-            else:
-                marcar_processado(checkpoint, item_id, "sucesso")
-        except Exception as e:
-            marcar_processado(checkpoint, item_id, "erro", str(e))
-        if pausa > 0:
-            time.sleep(pausa)
+    """Modo daily: itera datas no intervalo e tenta descoberta+download em cada.
+
+    Se `caminho_checkpoint` for fornecido, persiste após cada data processada
+    e em try/finally — interrupções e crashes preservam progresso para retomada.
+    """
+    try:
+        for data in gerar_datas(de, ate, somente_uteis):
+            item_id = f"{fonte.codigo}-{data.isoformat()}"
+            if ja_processado(checkpoint, item_id):
+                continue
+            if dry_run:
+                marcar_processado(checkpoint, item_id, "pulado_dedupe")
+                if caminho_checkpoint is not None:
+                    gravar_checkpoint(checkpoint, caminho_checkpoint)
+                continue
+            try:
+                resultado = processar_fonte(fonte, data, r2)
+                if resultado is None:
+                    marcar_processado(checkpoint, item_id, "sem_diario")
+                else:
+                    marcar_processado(checkpoint, item_id, "sucesso")
+            except Exception as e:
+                marcar_processado(checkpoint, item_id, "erro", str(e))
+            if caminho_checkpoint is not None:
+                gravar_checkpoint(checkpoint, caminho_checkpoint)
+            if pausa > 0:
+                time.sleep(pausa)
+    finally:
+        if caminho_checkpoint is not None:
+            gravar_checkpoint(checkpoint, caminho_checkpoint)
     return checkpoint
 
 
@@ -233,14 +259,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if modo == "listing":
         checkpoint = backfill_listing(
-            fonte, anos, r2, checkpoint, args.pausa, dry_run=args.dry_run,
+            fonte, anos, r2, checkpoint, args.pausa,
+            dry_run=args.dry_run, caminho_checkpoint=caminho_ckpt,
         )
     else:
         de = date.fromisoformat(args.de)
         ate = date.fromisoformat(args.ate)
         checkpoint = backfill_daily(
             fonte, de, ate, args.somente_dias_uteis,
-            r2, checkpoint, args.pausa, dry_run=args.dry_run,
+            r2, checkpoint, args.pausa,
+            dry_run=args.dry_run, caminho_checkpoint=caminho_ckpt,
         )
 
     gravar_checkpoint(checkpoint, caminho_ckpt)

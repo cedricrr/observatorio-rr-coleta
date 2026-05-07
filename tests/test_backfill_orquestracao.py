@@ -1,6 +1,7 @@
 """Testes de orquestração do backfill (fase RED — funções ainda não existem)."""
 
 from datetime import date
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -600,3 +601,208 @@ def test_main_retorna_1_se_houver_erro(mocker):
     rc = main(["--fonte", "mprr", "--anos", "2024"])
 
     assert rc == 1
+
+
+# --------------------------------------------------------------------------
+# GRUPO E — Persistência incremental do checkpoint
+# --------------------------------------------------------------------------
+
+def test_listing_grava_checkpoint_apos_cada_item(mocker, tmp_path):
+    mocker.patch(
+        "scripts.backfill.processar_descoberta",
+        return_value={"ja_existia": False},
+    )
+    mocker.patch("scripts.backfill.time.sleep")
+    grava = mocker.patch("scripts.backfill.gravar_checkpoint")
+
+    mod_mock = MagicMock()
+    mod_mock.list_year.return_value = [
+        _descoberta(800, "2024-06-01"),
+        _descoberta(801, "2024-06-02"),
+        _descoberta(802, "2024-06-03"),
+    ]
+    mocker.patch("scripts.backfill.importlib.import_module", return_value=mod_mock)
+
+    cp = _empty_checkpoint()
+    caminho_ckpt = tmp_path / "ck.json"
+    backfill_listing(
+        _mprr_fonte(), [2024], MagicMock(), cp,
+        pausa=0, caminho_checkpoint=caminho_ckpt,
+    )
+
+    assert grava.call_count >= 3
+    # cada chamada deve passar (cp, caminho_ckpt) — kwargs ou positional
+    for call in grava.call_args_list:
+        args = list(call.args) + list(call.kwargs.values())
+        assert cp in args
+        assert caminho_ckpt in args
+
+
+def test_listing_sem_caminho_checkpoint_nao_grava(mocker):
+    mocker.patch(
+        "scripts.backfill.processar_descoberta",
+        return_value={"ja_existia": False},
+    )
+    mocker.patch("scripts.backfill.time.sleep")
+    grava = mocker.patch("scripts.backfill.gravar_checkpoint")
+
+    mod_mock = MagicMock()
+    mod_mock.list_year.return_value = [
+        _descoberta(800, "2024-06-01"),
+        _descoberta(801, "2024-06-02"),
+    ]
+    mocker.patch("scripts.backfill.importlib.import_module", return_value=mod_mock)
+
+    cp = _empty_checkpoint()
+    backfill_listing(_mprr_fonte(), [2024], MagicMock(), cp, pausa=0)
+
+    grava.assert_not_called()
+
+
+def test_listing_grava_checkpoint_no_finally_apos_excecao(mocker, tmp_path):
+    mocker.patch(
+        "scripts.backfill.processar_descoberta",
+        side_effect=[
+            {"ja_existia": False},
+            RuntimeError("erro inesperado de programação"),
+        ],
+    )
+    mocker.patch("scripts.backfill.time.sleep")
+    grava = mocker.patch("scripts.backfill.gravar_checkpoint")
+
+    mod_mock = MagicMock()
+    mod_mock.list_year.return_value = [
+        _descoberta(800, "2024-06-01"),
+        _descoberta(801, "2024-06-02"),
+    ]
+    mocker.patch("scripts.backfill.importlib.import_module", return_value=mod_mock)
+
+    cp = _empty_checkpoint()
+    caminho_ckpt = tmp_path / "ck.json"
+
+    propagou = False
+    try:
+        backfill_listing(
+            _mprr_fonte(), [2024], MagicMock(), cp,
+            pausa=0, caminho_checkpoint=caminho_ckpt,
+        )
+    except RuntimeError:
+        propagou = True
+
+    assert propagou, "RuntimeError deveria ter propagado (não é RequestException)"
+    assert grava.called, "gravar_checkpoint deveria ter sido chamado antes do raise"
+
+
+def test_daily_grava_checkpoint_apos_cada_data(mocker, tmp_path):
+    mocker.patch(
+        "scripts.backfill.processar_fonte",
+        return_value={"ja_existia": False},
+    )
+    mocker.patch("scripts.backfill.time.sleep")
+    grava = mocker.patch("scripts.backfill.gravar_checkpoint")
+
+    cp = _empty_checkpoint()
+    caminho_ckpt = tmp_path / "ck.json"
+    backfill_daily(
+        _tjrr_fonte(),
+        date(2026, 4, 28),
+        date(2026, 4, 30),
+        somente_uteis=False,
+        r2=MagicMock(),
+        checkpoint=cp,
+        pausa=0,
+        caminho_checkpoint=caminho_ckpt,
+    )
+
+    assert grava.call_count >= 3
+
+
+def test_daily_sem_caminho_checkpoint_nao_grava(mocker):
+    mocker.patch(
+        "scripts.backfill.processar_fonte",
+        return_value={"ja_existia": False},
+    )
+    mocker.patch("scripts.backfill.time.sleep")
+    grava = mocker.patch("scripts.backfill.gravar_checkpoint")
+
+    cp = _empty_checkpoint()
+    backfill_daily(
+        _tjrr_fonte(),
+        date(2026, 4, 28),
+        date(2026, 4, 30),
+        somente_uteis=False,
+        r2=MagicMock(),
+        checkpoint=cp,
+        pausa=0,
+    )
+
+    grava.assert_not_called()
+
+
+def test_daily_grava_checkpoint_no_finally_apos_excecao(mocker, tmp_path):
+    mocker.patch(
+        "scripts.backfill.processar_fonte",
+        side_effect=[
+            {"ja_existia": False},
+            KeyboardInterrupt(),
+        ],
+    )
+    mocker.patch("scripts.backfill.time.sleep")
+    grava = mocker.patch("scripts.backfill.gravar_checkpoint")
+
+    cp = _empty_checkpoint()
+    caminho_ckpt = tmp_path / "ck.json"
+
+    propagou = False
+    try:
+        backfill_daily(
+            _tjrr_fonte(),
+            date(2026, 4, 28),
+            date(2026, 4, 30),
+            somente_uteis=False,
+            r2=MagicMock(),
+            checkpoint=cp,
+            pausa=0,
+            caminho_checkpoint=caminho_ckpt,
+        )
+    except KeyboardInterrupt:
+        propagou = True
+
+    assert propagou, "KeyboardInterrupt deveria propagar (interrupção do usuário)"
+    assert grava.called, "gravar_checkpoint deveria ter sido chamado antes do raise"
+
+
+def test_main_passa_caminho_checkpoint_para_listing(mocker):
+    _mock_main_essentials(mocker)
+    backfill_l = mocker.patch(
+        "scripts.backfill.backfill_listing",
+        return_value=_empty_checkpoint(),
+    )
+
+    main(["--fonte", "mprr", "--anos", "2024"])
+
+    call = backfill_l.call_args
+    caminho = call.kwargs.get("caminho_checkpoint")
+    if caminho is None and len(call.args) > 5:
+        caminho = call.args[5]
+    assert caminho is not None
+    assert isinstance(caminho, Path)
+    assert "mprr-2024" in str(caminho)
+
+
+def test_main_passa_caminho_checkpoint_para_daily(mocker):
+    _mock_main_essentials(mocker)
+    backfill_d = mocker.patch(
+        "scripts.backfill.backfill_daily",
+        return_value=_empty_checkpoint(),
+    )
+
+    main(["--fonte", "tjrr", "--de", "2026-04-01", "--ate", "2026-04-30"])
+
+    call = backfill_d.call_args
+    caminho = call.kwargs.get("caminho_checkpoint")
+    if caminho is None and len(call.args) > 7:
+        caminho = call.args[7]
+    assert caminho is not None
+    assert isinstance(caminho, Path)
+    assert "tjrr" in str(caminho)
