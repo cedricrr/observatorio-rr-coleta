@@ -93,3 +93,12 @@ class R2Client:
     def url_publica(self, chave: str) -> str:
         """URL pública do objeto via domínio CDN configurado."""
         return f"https://{self.public_domain}/{chave}"
+
+    def download_bytes(self, chave: str) -> bytes:
+        """Baixa o objeto da chave informada e retorna os bytes.
+
+        Levanta botocore.exceptions.ClientError se a chave não existe
+        ou se houver erro de acesso ao R2.
+        """
+        resposta = self.client.get_object(Bucket=self.bucket, Key=chave)
+        return resposta["Body"].read()
