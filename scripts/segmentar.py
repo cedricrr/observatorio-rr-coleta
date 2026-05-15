@@ -3,17 +3,28 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
 class Materia:
     """Uma unidade publicada no diário, identificada por padrão regex."""
+    # Campos identificadores (do Ciclo 8.4)
     orgao: str
     tipo: str
     texto: str
     pdf_url: str
     pagina: int | None = None
+
+    # Campos de classificação editorial (Sub-ciclos 8.6+)
+    # Preenchidos pelo classificador RLM. Defaults seguros para
+    # garantir backward compat com segmentar_materias.
+    categoria: str | None = None
+    manchete: str | None = None
+    resumo: str | None = None
+    valor_rs: float | None = None
+    tags: list[str] = field(default_factory=list)
+    relevante: bool = False
 
 
 PADROES_MPRR: list[tuple[str, str]] = [

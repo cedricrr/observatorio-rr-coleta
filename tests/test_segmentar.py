@@ -219,3 +219,72 @@ def test_segmentar_materias_isoladas_nao_vazam_texto():
     # E vice-versa
     assert "REMOVER" not in extrato.texto
     assert "MARIA DA SILVA" not in extrato.texto
+
+
+# ---------------------------------------------------------------------------
+# GRUPO H — Campos de classificação opcionais (Sub-ciclo 8.6a)
+# ---------------------------------------------------------------------------
+
+def test_materia_defaults_dos_campos_de_classificacao():
+    """Materia criada sem campos de classificação tem defaults seguros."""
+    m = Materia(
+        orgao="MPRR",
+        tipo="ATO_PGJ",
+        texto="x",
+        pdf_url="y",
+    )
+    assert m.categoria is None
+    assert m.manchete is None
+    assert m.resumo is None
+    assert m.valor_rs is None
+    assert m.tags == []
+    assert m.relevante is False
+
+
+def test_materia_aceita_campos_de_classificacao_completos():
+    """Todos os 6 campos novos podem ser passados explicitamente."""
+    m = Materia(
+        orgao="MPRR",
+        tipo="EXTRATO_CONTRATO",
+        texto="conteúdo da matéria",
+        pdf_url="https://example.com/x.pdf",
+        categoria="Contratos e licitações",
+        manchete="MPRR contrata caminhão médio por R$ 429 mil",
+        resumo="O Ministério Público formaliza compra de veículo...",
+        valor_rs=429000.00,
+        tags=["frota", "logística"],
+        relevante=True,
+    )
+    assert m.categoria == "Contratos e licitações"
+    assert m.manchete == "MPRR contrata caminhão médio por R$ 429 mil"
+    assert m.resumo == "O Ministério Público formaliza compra de veículo..."
+    assert m.valor_rs == 429000.00
+    assert m.tags == ["frota", "logística"]
+    assert m.relevante is True
+
+
+def test_materia_tags_default_e_lista_independente():
+    """Cada Materia tem sua própria lista de tags (não compartilhada)."""
+    m1 = Materia(orgao="MPRR", tipo="ATO_PGJ", texto="x", pdf_url="y")
+    m2 = Materia(orgao="MPRR", tipo="ATO_PGJ", texto="x", pdf_url="y")
+
+    m1.tags.append("frota")
+
+    assert m1.tags == ["frota"]
+    assert m2.tags == []
+
+
+def test_materia_classificada_compativel_com_segmentar_materias():
+    """Backward compat: segmentar_materias produz Materia com defaults
+    seguros nos campos de classificação (que serão preenchidos depois
+    no Sub-ciclo 8.6c).
+    """
+    materias = segmentar_materias(MD_MPRR_ATO_PGJ, "MPRR", "https://x.pdf")
+    assert len(materias) >= 1
+    m = materias[0]
+    assert m.categoria is None
+    assert m.manchete is None
+    assert m.resumo is None
+    assert m.valor_rs is None
+    assert m.tags == []
+    assert m.relevante is False
