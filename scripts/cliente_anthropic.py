@@ -1,0 +1,88 @@
+"""Wrapper sobre anthropic.Anthropic com extended thinking configurável."""
+
+from __future__ import annotations
+
+import os
+
+import anthropic
+
+
+class ClienteAnthropic:
+    """Cliente para classificação editorial via Claude API.
+
+    Encapsula configuração (modelo, extended thinking, max_tokens) e
+    expõe método classificar() simples. Centraliza tratamento de
+    autenticação via SDK anthropic e parâmetros do modelo.
+
+    A SDK anthropic.Anthropic lê ANTHROPIC_API_KEY do ambiente
+    automaticamente quando api_key não é passado. Se a key não
+    existir em lugar nenhum, a SDK levanta AuthenticationError no
+    primeiro uso.
+    """
+
+    DEFAULT_MODEL = "claude-sonnet-4-6"
+    DEFAULT_MAX_TOKENS = 2000
+    THINKING_BUDGET_TOKENS = 1024
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str = DEFAULT_MODEL,
+        extended_thinking: bool = True,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
+    ):
+        if api_key is None and not os.environ.get("ANTHROPIC_API_KEY"):
+            raise ValueError(
+                "ANTHROPIC_API_KEY não definida (nem como argumento "
+                "nem como variável de ambiente)"
+            )
+        self._client = anthropic.Anthropic(api_key=api_key)
+        self.model = model
+        self.extended_thinking = extended_thinking
+        self.max_tokens = max_tokens
+
+    def classificar(
+        self,
+        prompt: str,
+        system: str | None = None,
+    ) -> str:
+        """Envia prompt à API, retorna texto da resposta.
+
+        Quando extended_thinking=True, adiciona parâmetro thinking
+        com budget mínimo (1024 tokens). Sem extended_thinking, a
+        chamada é direta — modelo responde sem etapa de raciocínio
+        explícito.
+
+        Quando system é fornecido, é passado como system prompt
+        (distinto do user prompt). Senão é omitido.
+
+        Retorna o texto do primeiro bloco de conteúdo da resposta.
+        Para respostas com extended thinking, blocos de thinking
+        aparecem ANTES do bloco de texto final — esta função busca
+        o primeiro bloco type="text" e ignora blocos de thinking.
+
+        Exceções da API (rate limit, timeout, auth) são propagadas
+        sem captura.
+        """
+        kwargs: dict = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+
+        if system is not None:
+            kwargs["system"] = system
+
+        if self.extended_thinking:
+            kwargs["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": self.THINKING_BUDGET_TOKENS,
+            }
+
+        resposta = self._client.messages.create(**kwargs)
+
+        for bloco in resposta.content:
+            if getattr(bloco, "type", None) == "text":
+                return bloco.text
+
+        return resposta.content[0].text
