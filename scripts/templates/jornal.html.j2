@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observatório Roraima — {{ data_formatada }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cor-primaria: #1a1a1a;
+            --cor-texto: #2c2c2c;
+            --cor-secundaria: #666;
+            --cor-fundo: #fafafa;
+            --cor-card: #ffffff;
+            --cor-tag: #f0f0f0;
+            --cor-valor: #2d6a4f;
+            --cor-divisa: #e0e0e0;
+            --max-largura: 760px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--cor-fundo);
+            color: var(--cor-texto);
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: var(--max-largura);
+            margin: 0 auto;
+        }
+
+        header.jornal-cabecalho {
+            text-align: center;
+            padding-bottom: 2rem;
+            margin-bottom: 3rem;
+            border-bottom: 2px solid var(--cor-primaria);
+        }
+
+        header.jornal-cabecalho h1 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            color: var(--cor-primaria);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        header.jornal-cabecalho .subtitulo {
+            font-family: 'Fraunces', Georgia, serif;
+            font-style: italic;
+            font-weight: 400;
+            font-size: 1.1rem;
+            color: var(--cor-secundaria);
+            margin-bottom: 1rem;
+        }
+
+        header.jornal-cabecalho .meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--cor-secundaria);
+            letter-spacing: 0.05em;
+        }
+
+        section.orgao {
+            margin-bottom: 3rem;
+        }
+
+        section.orgao h2 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 1.5rem;
+            color: var(--cor-primaria);
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--cor-divisa);
+            margin-bottom: 1.5rem;
+        }
+
+        article.materia {
+            background: var(--cor-card);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-left: 3px solid var(--cor-primaria);
+            border-radius: 0 4px 4px 0;
+        }
+
+        article.materia h3 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 1.25rem;
+            color: var(--cor-primaria);
+            margin-bottom: 0.75rem;
+            line-height: 1.3;
+        }
+
+        article.materia .resumo {
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            color: var(--cor-texto);
+            margin-bottom: 1rem;
+        }
+
+        article.materia .meta-materia {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            margin-top: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+        }
+
+        article.materia .tag {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            background: var(--cor-tag);
+            color: var(--cor-secundaria);
+            border-radius: 3px;
+            font-size: 0.75rem;
+        }
+
+        article.materia .categoria {
+            background: var(--cor-primaria);
+            color: #fff;
+        }
+
+        article.materia .valor {
+            color: var(--cor-valor);
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        footer.jornal-rodape {
+            margin-top: 4rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--cor-divisa);
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--cor-secundaria);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--cor-secundaria);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="jornal-cabecalho">
+            <h1>Observatório Roraima</h1>
+            <p class="subtitulo">Diário editorial dos órgãos públicos de Roraima</p>
+            <p class="meta">
+                {{ data_formatada }}
+                {%- if num_edicao %} · Edição nº {{ num_edicao }}{% endif %}
+                {%- if total_materias > 0 %} · {{ total_materias }} {{ "matéria" if total_materias == 1 else "matérias" }}{% endif %}
+            </p>
+        </header>
+
+        {% if materias_por_orgao %}
+            {% for orgao, materias_orgao in materias_por_orgao.items() %}
+            <section class="orgao">
+                <h2>{{ orgao }}</h2>
+                {% for materia in materias_orgao %}
+                <article class="materia">
+                    <h3>{{ materia.manchete }}</h3>
+                    <p class="resumo">{{ materia.resumo }}</p>
+                    <div class="meta-materia">
+                        <span class="tag categoria">{{ materia.categoria }}</span>
+                        {%- if materia.valor_rs %}
+                        <span class="valor">R$ {{ formatar_valor(materia.valor_rs) }}</span>
+                        {%- endif %}
+                        {%- for tag in materia.tags %}
+                        <span class="tag">{{ tag }}</span>
+                        {%- endfor %}
+                    </div>
+                </article>
+                {% endfor %}
+            </section>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                Nenhuma matéria com relevância editorial nesta edição.
+            </div>
+        {% endif %}
+
+        <footer class="jornal-rodape">
+            <p>Gerado automaticamente pelo Observatório Roraima</p>
+        </footer>
+    </div>
+</body>
+</html>
