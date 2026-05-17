@@ -37,7 +37,7 @@ CATEGORIAS DISPONÍVEIS (escolha exatamente uma):
 1. "Contratos e licitações" — extratos de contrato, dispensas de
    licitação, pregões, termos aditivos. Aquisições de bens ou serviços.
 2. "Movimentação de pessoal" — remoções, promoções, lotações,
-   transferências, exonerações. Inclui ATO_PGJ típicos.
+   transferências, exonerações. Inclui PORTARIA_PGJ típicos.
 3. "Investigações e inquéritos" — instauração de IC, apurações de
    improbidade, procedimentos investigatórios.
 4. "Atos normativos" — emendas regimentais, portarias normativas,

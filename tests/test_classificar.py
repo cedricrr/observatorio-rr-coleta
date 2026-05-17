@@ -120,7 +120,7 @@ def test_classifica_aceita_valor_rs_none():
         "tags": ["remoção"],
     }
     cliente = _cliente_mock_com_resposta(dados)
-    materia = classificar_materia(_materia(tipo="ATO_PGJ"), cliente)
+    materia = classificar_materia(_materia(tipo="PORTARIA_PGJ"), cliente)
     assert materia.valor_rs is None
 
 
@@ -192,7 +192,7 @@ def test_user_prompt_inclui_orgao_e_tipo():
         "tags": [],
     }
     cliente = _cliente_mock_com_resposta(dados)
-    materia_in = _materia(tipo="ATO_PGJ", orgao="MPRR")
+    materia_in = _materia(tipo="PORTARIA_PGJ", orgao="MPRR")
 
     classificar_materia(materia_in, cliente)
 
@@ -201,7 +201,7 @@ def test_user_prompt_inclui_orgao_e_tipo():
         call_args.args[0] if call_args.args else call_args.kwargs.get("prompt", "")
     )
     assert "MPRR" in user_prompt
-    assert "ATO_PGJ" in user_prompt
+    assert "PORTARIA_PGJ" in user_prompt
 
 
 def test_system_prompt_foi_passado_ao_cliente():
