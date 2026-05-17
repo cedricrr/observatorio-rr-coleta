@@ -101,10 +101,46 @@ Responda APENAS com JSON válido no formato esperado, sem texto antes
 ou depois."""
 
 
+def _strip_markdown_fence(texto: str) -> str:
+    """Remove markdown code fence se presente.
+
+    O modelo Claude frequentemente envolve respostas JSON em fence
+    ```json...``` mesmo quando instruído a retornar apenas JSON.
+    Esta função remove fence envolvente para tornar a string
+    parseável por json.loads.
+
+    Idempotente: string sem fence é retornada inalterada (após
+    strip de whitespace).
+
+    Casa variações: "```json", "```", " ``` json " com/sem
+    whitespace ao redor.
+    """
+    texto = texto.strip()
+    if not texto.startswith("```"):
+        return texto
+
+    primeira_quebra = texto.find("\n")
+    if primeira_quebra == -1:
+        return texto.lstrip("`").strip()
+
+    texto = texto[primeira_quebra + 1:]
+
+    if texto.endswith("```"):
+        texto = texto[:-3]
+
+    return texto.strip()
+
+
 def _parsear_resposta_json(texto: str) -> dict:
-    """Parseia JSON da resposta. Levanta ValueError se inválido."""
+    """Parseia JSON da resposta. Levanta ValueError se inválido.
+
+    Tolera respostas envoltas em markdown code fence (```json...```)
+    — comportamento comum do modelo Claude apesar do system prompt
+    pedir o contrário.
+    """
+    texto_limpo = _strip_markdown_fence(texto)
     try:
-        dados = json.loads(texto)
+        dados = json.loads(texto_limpo)
     except json.JSONDecodeError as e:
         raise ValueError(f"JSON inválido na resposta do RLM: {e}") from e
     if not isinstance(dados, dict):

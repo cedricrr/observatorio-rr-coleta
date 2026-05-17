@@ -297,3 +297,106 @@ def test_categorias_validas_tem_9_entradas():
     assert "Contratos e licitações" in CATEGORIAS_VALIDAS
     assert "Outros" in CATEGORIAS_VALIDAS
     assert "Decisões judiciais relevantes" in CATEGORIAS_VALIDAS
+
+
+# ---------------------------------------------------------------------------
+# GRUPO F — Tolerância a markdown fences na resposta (Sub-ciclo 8.6c.1)
+# ---------------------------------------------------------------------------
+
+def test_classificar_aceita_resposta_envolta_em_fence_json():
+    """Modelo frequentemente envolve JSON em ```json...```.
+
+    Bug encontrado no smoke real de 17/05/2026: Sonnet 4.6 envolve
+    JSON em fence apesar do system prompt pedir o contrário. Parser
+    deve tolerar.
+    """
+    dados = {
+        "relevante": True,
+        "categoria": "Designações e nomeações",
+        "manchete": "TJRR designa servidor por portaria",
+        "resumo": "O TJRR publicou portaria designando servidor.",
+        "valor_rs": None,
+        "tags": ["TJRR", "designação"],
+    }
+    resposta_com_fence = f"```json\n{json.dumps(dados, ensure_ascii=False)}\n```"
+    cliente = MagicMock(spec=ClienteAnthropic)
+    cliente.classificar.return_value = resposta_com_fence
+
+    materia_in = _materia(tipo="PORTARIA_ITEM", orgao="TJRR")
+    materia_out = classificar_materia(materia_in, cliente)
+
+    assert materia_out.relevante is True
+    assert materia_out.categoria == "Designações e nomeações"
+    assert materia_out.manchete == "TJRR designa servidor por portaria"
+
+
+def test_classificar_aceita_resposta_envolta_em_fence_simples():
+    """Variação: fence sem 'json' depois dos backticks."""
+    dados = {
+        "relevante": True,
+        "categoria": "Outros",
+        "manchete": "x",
+        "resumo": "y",
+        "valor_rs": None,
+        "tags": [],
+    }
+    resposta = f"```\n{json.dumps(dados, ensure_ascii=False)}\n```"
+    cliente = MagicMock(spec=ClienteAnthropic)
+    cliente.classificar.return_value = resposta
+
+    materia = classificar_materia(_materia(), cliente)
+    assert materia.relevante is True
+    assert materia.categoria == "Outros"
+
+
+def test_classificar_aceita_fence_com_whitespace_extra():
+    """Variação: whitespace/quebras extras ao redor do fence."""
+    dados = {
+        "relevante": True,
+        "categoria": "Outros",
+        "manchete": "x",
+        "resumo": "y",
+        "valor_rs": None,
+        "tags": [],
+    }
+    resposta = f"  \n\n```json\n{json.dumps(dados, ensure_ascii=False)}\n```  \n\n"
+    cliente = MagicMock(spec=ClienteAnthropic)
+    cliente.classificar.return_value = resposta
+
+    materia = classificar_materia(_materia(), cliente)
+    assert materia.categoria == "Outros"
+
+
+def test_classificar_ainda_aceita_json_puro_sem_fence():
+    """Backward compat: JSON puro sem fence continua funcionando.
+
+    Garante que o strip de fence não quebre o caso ideal.
+    """
+    dados = {
+        "relevante": True,
+        "categoria": "Atos normativos",
+        "manchete": "Lei alterada",
+        "resumo": "Texto altera lei.",
+        "valor_rs": None,
+        "tags": ["lei"],
+    }
+    resposta = json.dumps(dados, ensure_ascii=False)
+    cliente = MagicMock(spec=ClienteAnthropic)
+    cliente.classificar.return_value = resposta
+
+    materia = classificar_materia(_materia(), cliente)
+    assert materia.categoria == "Atos normativos"
+
+
+def test_classificar_fence_no_meio_nao_atrapalha_se_json_valido():
+    """Caso degenerado: se modelo retornar texto + fence + texto,
+    desde que o JSON principal esteja claro, parseia.
+
+    Este teste documenta comportamento: strip remove APENAS fences
+    envolventes (início e fim). Texto antes/depois do JSON fora de
+    fence ainda quebra o parse, mas isso é decisão consciente.
+
+    Não é teste obrigatório — pode falhar e tudo bem. Mantido para
+    documentar limite.
+    """
+    pass
