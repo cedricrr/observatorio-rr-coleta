@@ -61,6 +61,28 @@ def test_sinal_descarte_conceder_ferias_filtra():
     assert resultado == []
 
 
+def test_sinal_descarte_folga_plantoes_sem_virgula_filtra():
+    """Bug descoberto no smoke real do MPRR (17/05/2026): texto real
+    usa 'folga em razão de plantões' SEM vírgula após 'folga'.
+
+    Texto real da Portaria PGJ 1126743 do MPRR edição 951:
+    'Conceder ao Promotor de Justiça, Dr. PAULO ANDRÉ DE CAMPOS
+    TRINDADE, 01 (um) dia de folga em razão de plantões ministeriais
+    a ser usufruído em 19JUN2026'
+
+    Padrão antigo exigia vírgula após 'folga' e não casava esse
+    formato. Fix: vírgula opcional.
+    """
+    mat = _m(
+        "PORTARIA_PGJ",
+        "Conceder ao Promotor de Justiça, Dr. PAULO ANDRÉ DE CAMPOS "
+        "TRINDADE, 01 (um) dia de folga em razão de plantões "
+        "ministeriais a ser usufruído em 19JUN2026.",
+    )
+    resultado = filtrar_materias([mat])
+    assert resultado == []
+
+
 # ---------------------------------------------------------------------------
 # GRUPO C — Tipos sempre relevantes
 # ---------------------------------------------------------------------------

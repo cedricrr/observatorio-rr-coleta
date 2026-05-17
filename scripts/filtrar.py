@@ -17,7 +17,7 @@ SINAIS_DESCARTE: list[str] = [
     r"Convalidar\s+a\s+concessão\s+das\s+folgas",
     r"Conceder.*dias?\s+de\s+férias",
     r"Conceder\s+folgas?\s+compensatórias?",
-    r"dia[s]?\s+de\s+folga,\s+em\s+razão\s+de\s+plantões",
+    r"dia[s]?\s+de\s+folga,?\s+em\s+razão\s+de\s+plantões",
     r"dispensa\s+do\s+serviço.*justiça\s+eleitoral",
     r"Cessar.*os\s+efeitos",
     r"Altera-se\s+o\s+CNPJ\s+da\s+empresa\s+matriz",
