@@ -28,16 +28,43 @@ class Materia:
 
 
 PADROES_MPRR: list[tuple[str, str]] = [
-    (r"\*\*\s*ATO\s+N\.?\s*\d+\s*-\s*PGJ\s*\*\*", "ATO_PGJ"),
-    (r"\*\*\s*EXTRATO\s+D[OE]\s+CONTRATO[^\n*]*\*\*", "EXTRATO_CONTRATO"),
+    # PORTARIA PGJ — formato real do MPRR:
+    # **PORTARIA - Nº 1125662 - PGJ, 29 DE ABRIL DE 2026**
+    # 21 ocorrências/edição em média. Hífens podem ser '-' OU '–'.
     (
-        r"\*\*\s*EXTRATO\s+DA\s+PORTARIA\s+DE\s+INSTAURAÇÃO\s+DE\s+IC"
-        r"[^\n*]*\*\*",
+        r"\*\*\s*PORTARIA\s*[-–]\s*Nº\s*\d+\s*[-–]\s*PGJ[^\n*]*\*\*",
+        "PORTARIA_PGJ",
+    ),
+
+    # PORTARIA DE INSTAURAÇÃO — formato real (título pode estar
+    # quebrado em 2 blocos ** consecutivos pelo pymupdf4llm):
+    # **PORTARIA Nº 022/2026 – MP/PJ/SLA – DE INSTAURAÇÃO DO PA Nº ...**
+    # Regex casa apenas o primeiro bloco com a palavra INSTAURAÇÃO.
+    (
+        r"\*\*\s*PORTARIA\s+Nº\s*\d+[^\n*]*INSTAURAÇÃO[^\n*]*\*\*",
         "INSTAURACAO_IC",
     ),
+
+    # EXTRATO DO CONTRATO — formato real dentro de tabela Markdown,
+    # SEM cercadura **, com <br> separando linhas:
+    # ...<br>EXTRATO DO CONTRATO Nº 34/2026 – PROCESSO ...<br>...
+    # Padrão para no <br> ou \n para isolar só o título.
     (
-        r"\*\*\s*EXTRATO\s+DE\s+DISPENSA\s+DE\s+LICITAÇÃO[^\n*]*\*\*",
+        r"EXTRATO\s+D[OE]\s+CONTRATO\s+Nº?\s*\d+[^\n<]*",
+        "EXTRATO_CONTRATO",
+    ),
+
+    # EXTRATO DE DISPENSA DE LICITAÇÃO — similar (tabela, sem **).
+    (
+        r"EXTRATO\s+DE\s+DISPENSA\s+DE\s+LICITAÇÃO[^\n<]*",
         "DISPENSA_LICITACAO",
+    ),
+
+    # EXTRATO DE TERMO ADITIVO — tipo novo descoberto no refactor.
+    # Mesma estrutura de tabela.
+    (
+        r"EXTRATO\s+DE\s+TERMO\s+ADITIVO[^\n<]*",
+        "TERMO_ADITIVO",
     ),
 ]
 

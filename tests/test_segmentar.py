@@ -8,43 +8,62 @@ from scripts.segmentar import Materia, segmentar_materias
 
 
 # ---------------------------------------------------------------------------
-# Fixtures de Markdown sintético — um padrão por bloco
+# Fixtures de Markdown — formato REAL pós-refactor 2026-05-17
+# (extraídos de /tmp/mprr_real.md, diário 951 do MPRR)
 # ---------------------------------------------------------------------------
 
-MD_MPRR_ATO_PGJ = """
-###### **MINISTÉRIO PÚBLICO DO ESTADO DE RORAIMA**
+MD_MPRR_PORTARIA_PGJ = """
+Boa Vista, 30 de abril de 2026                         Edição 951                                  4
 
-**ATO N. 042 - PGJ**
 
-REMOVER, a pedido, por critério de merecimento, a Procuradora de
-Justiça, Dra. MARIA DA SILVA, da 5ª Procuradoria de Justiça Criminal
-para a 3ª Procuradoria de Justiça Criminal.
+**PORTARIA - Nº 1125662 - PGJ, 29 DE ABRIL DE 2026**
+
+
+O **PROCURADOR-GERAL DE JUSTIÇA DO MINISTÉRIO PÚBLICO DO ESTADO DE RORAIMA**,
+com fulcro na última parte do inciso IX, art. 12; e art. 139, ambos da Lei Complementar nº 003/1994;
+
+
+**CONSIDERANDO** a remoção da Procuradora de Justiça, Dra. **JANAÍNA CARNEIRO COSTA**,
+conforme Ato nº 025-PGJ, de 27ABR2026, publicado no DEMPRR nº 949, de 28ABR2026;
+
+
+**R E S O L V E :**
+
+Convocar, _ad referendum_ do Conselho Superior do Ministério Público, o Promotor de Justiça
+de segunda entrância, Dr. **ADEMAR LOIOLA MOTA**, para responder pela 6ª Procuradoria de Justiça
+Criminal, com prejuízo de suas funções originárias.
 """
 
-MD_MPRR_EXTRATO_CONTRATO = """
-**EXTRATO DO CONTRATO N. 25/2026**
-
-CONTRATADA: EMPRESA EXEMPLO LTDA - CNPJ 00.000.000/0001-00
-OBJETO: aquisição de caminhão médio com baú
-VALOR: R$ 429.000,00
-"""
 
 MD_MPRR_INSTAURACAO_IC = """
-**EXTRATO DA PORTARIA DE INSTAURAÇÃO DE IC N. 10/2026**
+# **PROMOTORIA DE JUSTIÇA DA COMARCA DE SÃO LUIZ DO ANAUÁ**
 
-O Promotor de Justiça da Comarca de Bonfim instaurou inquérito civil
-cujo objeto é "apurar suposta prática de improbidade administrativa
-no município de Bonfim".
+
+**PORTARIA Nº 022/2026 – MP/PJ/SLA – DE INSTAURAÇÃO DO PA Nº 17/2026 – SIMP Nº 000418-**
+
+**060/2026**
+
+
+O **MINISTÉRIO PÚBLICO DO ESTADO DE RORAIMA**, por intermédio da Promotora de Justiça
+Substituta da Promotoria de Justiça da Comarca de São Luiz do Anauá, no exercício das atribuições
+institucionais conferidas pelo artigo 129, da Constituição Federal.
 """
+
+
+MD_MPRR_EXTRATO_CONTRATO = """
+| B o a V i s t a , 3 0 d e a b r i l d e 2 0 2 6 Edição 951 25<br>EXTRATO DO CONTRATO Nº 34/2026 – PROCESSO SEI Nº 19.26.1000000.0002608/2026-64<br>A Seção de Compras e Contratos do Ministério Público do Estado de Roraima, em cumprimento ao art.<br>37 da CF/88, vem tornar público o resumo do Contrato nº 34/2026.<br>OBJETO: Aquisição de suprimentos de informática.<br>CONTRATADA: 29.127.173 FAYRLON GUEDES SOARES.<br>VALOR: R$ 1.590,00 (um mil, quinhentos e noventa reais).
+"""
+
 
 MD_MPRR_DISPENSA_LICITACAO = """
-**EXTRATO DE DISPENSA DE LICITAÇÃO N. 05/2026**
-
-CONTRATADO: FORNECEDOR LTDA
-OBJETO: instalação de cerca eletrificada na nova Promotoria
-VALOR: R$ 35.000,00
-Fundamentação: art. 75, II, Lei 14.133/2021.
+| Edição 951 26<br>EXTRATO DE DISPENSA DE LICITAÇÃO Nº 05/2026<br>PROCESSO SEI Nº 19.26.1000000.0002608/2026-64<br>CONTRATADO: FORNECEDOR LTDA<br>OBJETO: instalação de cerca eletrificada na nova Promotoria<br>VALOR: R$ 35.000,00<br>Fundamentação: art. 75, II, Lei 14.133/2021.
 """
+
+
+MD_MPRR_TERMO_ADITIVO = """
+| Edição 951 27<br>EXTRATO DE TERMO ADITIVO AO CONTRATO Nº 12/2025<br>PROCESSO SEI Nº 19.26.1000000.0001234/2025-99<br>OBJETO: prorrogação de vigência por mais 12 meses.<br>VALOR: R$ 50.000,00 (cinquenta mil reais).
+"""
+
 
 MD_TJRR_EMENDA_REGIMENTAL = """
 ###### **TRIBUNAL PLENO**
@@ -84,12 +103,12 @@ VALOR: R$ 158.000,00
 def test_materia_e_dataclass_com_campos_essenciais():
     m = Materia(
         orgao="MPRR",
-        tipo="ATO_PGJ",
+        tipo="PORTARIA_PGJ",
         texto="conteudo",
         pdf_url="https://example.com/a.pdf",
     )
     assert m.orgao == "MPRR"
-    assert m.tipo == "ATO_PGJ"
+    assert m.tipo == "PORTARIA_PGJ"
     assert m.texto == "conteudo"
     assert m.pdf_url == "https://example.com/a.pdf"
     assert m.pagina is None
@@ -98,7 +117,7 @@ def test_materia_e_dataclass_com_campos_essenciais():
 def test_materia_aceita_pagina_opcional():
     m = Materia(
         orgao="MPRR",
-        tipo="ATO_PGJ",
+        tipo="PORTARIA_PGJ",
         texto="x",
         pdf_url="y",
         pagina=5,
@@ -107,35 +126,45 @@ def test_materia_aceita_pagina_opcional():
 
 
 # ---------------------------------------------------------------------------
-# GRUPO B — segmentar_materias (MPRR)
+# GRUPO B — segmentar_materias (MPRR) — formato REAL pós-refactor 17/05
 # ---------------------------------------------------------------------------
 
-def test_segmentar_mprr_detecta_ato_pgj():
-    materias = segmentar_materias(MD_MPRR_ATO_PGJ, "MPRR", "https://test.pdf")
+def test_segmentar_mprr_detecta_portaria_pgj():
+    materias = segmentar_materias(MD_MPRR_PORTARIA_PGJ, "MPRR", "https://test.pdf")
     assert len(materias) >= 1
-    assert any(m.tipo == "ATO_PGJ" for m in materias)
-    m = next(m for m in materias if m.tipo == "ATO_PGJ")
+    assert any(m.tipo == "PORTARIA_PGJ" for m in materias)
+    m = next(m for m in materias if m.tipo == "PORTARIA_PGJ")
     assert m.orgao == "MPRR"
-    assert "REMOVER" in m.texto
+    assert "Convocar" in m.texto or "ADEMAR" in m.texto
     assert m.pdf_url == "https://test.pdf"
-
-
-def test_segmentar_mprr_detecta_extrato_contrato():
-    materias = segmentar_materias(MD_MPRR_EXTRATO_CONTRATO, "MPRR", "https://x.pdf")
-    assert any(m.tipo == "EXTRATO_CONTRATO" for m in materias)
-    m = next(m for m in materias if m.tipo == "EXTRATO_CONTRATO")
-    assert "CONTRATADA" in m.texto
-    assert "429.000" in m.texto
 
 
 def test_segmentar_mprr_detecta_instauracao_ic():
     materias = segmentar_materias(MD_MPRR_INSTAURACAO_IC, "MPRR", "https://x.pdf")
     assert any(m.tipo == "INSTAURACAO_IC" for m in materias)
+    m = next(m for m in materias if m.tipo == "INSTAURACAO_IC")
+    assert "022/2026" in m.texto or "INSTAURAÇÃO" in m.texto
+
+
+def test_segmentar_mprr_detecta_extrato_contrato_em_tabela():
+    """Extrato de contrato no MPRR vem dentro de tabela Markdown
+    (com pipes e <br>), SEM cercadura **.
+    """
+    materias = segmentar_materias(MD_MPRR_EXTRATO_CONTRATO, "MPRR", "https://x.pdf")
+    assert any(m.tipo == "EXTRATO_CONTRATO" for m in materias)
+    m = next(m for m in materias if m.tipo == "EXTRATO_CONTRATO")
+    assert "34/2026" in m.texto or "1.590" in m.texto
 
 
 def test_segmentar_mprr_detecta_dispensa_licitacao():
     materias = segmentar_materias(MD_MPRR_DISPENSA_LICITACAO, "MPRR", "https://x.pdf")
     assert any(m.tipo == "DISPENSA_LICITACAO" for m in materias)
+
+
+def test_segmentar_mprr_detecta_termo_aditivo():
+    """TERMO_ADITIVO é tipo novo descoberto no refactor de 17/05."""
+    materias = segmentar_materias(MD_MPRR_TERMO_ADITIVO, "MPRR", "https://x.pdf")
+    assert any(m.tipo == "TERMO_ADITIVO" for m in materias)
 
 
 # ---------------------------------------------------------------------------
@@ -189,10 +218,10 @@ def test_orgao_mprr_ignora_padroes_tjrr():
 # ---------------------------------------------------------------------------
 
 def test_segmentar_markdown_com_multiplas_materias_mprr():
-    md = MD_MPRR_ATO_PGJ + "\n\n" + MD_MPRR_EXTRATO_CONTRATO
+    md = MD_MPRR_PORTARIA_PGJ + "\n\n" + MD_MPRR_EXTRATO_CONTRATO
     materias = segmentar_materias(md, "MPRR", "https://x.pdf")
     tipos = {m.tipo for m in materias}
-    assert "ATO_PGJ" in tipos
+    assert "PORTARIA_PGJ" in tipos
     assert "EXTRATO_CONTRATO" in tipos
 
 
@@ -206,19 +235,19 @@ def test_segmentar_materias_isoladas_nao_vazam_texto():
     Falha cedo se a implementação retornar o Markdown inteiro N vezes
     (uma por padrão casado) em vez de fatiar corretamente.
     """
-    md = MD_MPRR_ATO_PGJ + "\n\n" + MD_MPRR_EXTRATO_CONTRATO
+    md = MD_MPRR_PORTARIA_PGJ + "\n\n" + MD_MPRR_EXTRATO_CONTRATO
     materias = segmentar_materias(md, "MPRR", "https://x.pdf")
 
-    ato = next(m for m in materias if m.tipo == "ATO_PGJ")
+    portaria = next(m for m in materias if m.tipo == "PORTARIA_PGJ")
     extrato = next(m for m in materias if m.tipo == "EXTRATO_CONTRATO")
 
-    # Texto do ATO não deve incluir conteúdo do EXTRATO
-    assert "EMPRESA EXEMPLO" not in ato.texto
-    assert "429.000" not in ato.texto
+    # Texto da PORTARIA não deve incluir conteúdo do EXTRATO
+    assert "FAYRLON" not in portaria.texto
+    assert "1.590" not in portaria.texto
 
     # E vice-versa
-    assert "REMOVER" not in extrato.texto
-    assert "MARIA DA SILVA" not in extrato.texto
+    assert "ADEMAR" not in extrato.texto
+    assert "JANAÍNA" not in extrato.texto
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +258,7 @@ def test_materia_defaults_dos_campos_de_classificacao():
     """Materia criada sem campos de classificação tem defaults seguros."""
     m = Materia(
         orgao="MPRR",
-        tipo="ATO_PGJ",
+        tipo="PORTARIA_PGJ",
         texto="x",
         pdf_url="y",
     )
@@ -265,8 +294,8 @@ def test_materia_aceita_campos_de_classificacao_completos():
 
 def test_materia_tags_default_e_lista_independente():
     """Cada Materia tem sua própria lista de tags (não compartilhada)."""
-    m1 = Materia(orgao="MPRR", tipo="ATO_PGJ", texto="x", pdf_url="y")
-    m2 = Materia(orgao="MPRR", tipo="ATO_PGJ", texto="x", pdf_url="y")
+    m1 = Materia(orgao="MPRR", tipo="PORTARIA_PGJ", texto="x", pdf_url="y")
+    m2 = Materia(orgao="MPRR", tipo="PORTARIA_PGJ", texto="x", pdf_url="y")
 
     m1.tags.append("frota")
 
@@ -279,7 +308,7 @@ def test_materia_classificada_compativel_com_segmentar_materias():
     seguros nos campos de classificação (que serão preenchidos depois
     no Sub-ciclo 8.6c).
     """
-    materias = segmentar_materias(MD_MPRR_ATO_PGJ, "MPRR", "https://x.pdf")
+    materias = segmentar_materias(MD_MPRR_PORTARIA_PGJ, "MPRR", "https://x.pdf")
     assert len(materias) >= 1
     m = materias[0]
     assert m.categoria is None
