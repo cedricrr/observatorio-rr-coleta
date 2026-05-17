@@ -26,13 +26,13 @@ def test_lista_vazia_retorna_lista_vazia():
 
 def test_funcao_e_pura_nao_modifica_entrada():
     original = [
-        _m("ATO_PGJ", "REMOVER, a pedido, a Procuradora..."),
+        _m("PORTARIA_PGJ", "REMOVER, a pedido, a Procuradora..."),
         _m("EXTRATO_CONTRATO", "licença para tratamento de saúde..."),
     ]
     copia = list(original)
     filtrar_materias(original)
     assert original == copia
-    assert original[0].tipo == "ATO_PGJ"
+    assert original[0].tipo == "PORTARIA_PGJ"
     assert original[1].tipo == "EXTRATO_CONTRATO"
 
 
@@ -50,13 +50,13 @@ def test_sinal_descarte_licenca_saude_filtra():
 
 
 def test_sinal_descarte_convalidar_licenca_filtra():
-    mat = _m("ATO_PGJ", "Convalidar a licença anterior do servidor...")
+    mat = _m("PORTARIA_PGJ", "Convalidar a licença anterior do servidor...")
     resultado = filtrar_materias([mat])
     assert resultado == []
 
 
 def test_sinal_descarte_conceder_ferias_filtra():
-    mat = _m("ATO_PGJ", "Conceder 30 dias de férias ao servidor...")
+    mat = _m("PORTARIA_PGJ", "Conceder 30 dias de férias ao servidor...")
     resultado = filtrar_materias([mat])
     assert resultado == []
 
@@ -66,10 +66,10 @@ def test_sinal_descarte_conceder_ferias_filtra():
 # ---------------------------------------------------------------------------
 
 def test_ato_pgj_sem_sinal_forte_passa():
-    mat = _m("ATO_PGJ", "REMOVER, a pedido, a Procuradora MARIA DA SILVA...")
+    mat = _m("PORTARIA_PGJ", "REMOVER, a pedido, a Procuradora MARIA DA SILVA...")
     resultado = filtrar_materias([mat])
     assert len(resultado) == 1
-    assert resultado[0].tipo == "ATO_PGJ"
+    assert resultado[0].tipo == "PORTARIA_PGJ"
 
 
 def test_emenda_regimental_passa():
@@ -152,7 +152,7 @@ def test_portaria_item_sem_sinal_forte_filtra():
 
 def test_mistura_filtra_corretamente():
     materias = [
-        _m("ATO_PGJ", "REMOVER, a pedido, a Procuradora..."),
+        _m("PORTARIA_PGJ", "REMOVER, a pedido, a Procuradora..."),
         _m("EXTRATO_CONTRATO", "licença saúde, convalidar..."),
         _m("EXTRATO_CONTRATO", "EXTRATO DE CONTRATO N. 5/2026..."),
         _m("PORTARIA_ITEM", "Designar substituto temporário..."),
@@ -161,7 +161,7 @@ def test_mistura_filtra_corretamente():
     resultado = filtrar_materias(materias)
     assert len(resultado) == 3
     tipos = [m.tipo for m in resultado]
-    assert "ATO_PGJ" in tipos
+    assert "PORTARIA_PGJ" in tipos
     assert "EXTRATO_CONTRATO" in tipos
     assert "EMENDA_REGIMENTAL" in tipos
 
@@ -171,7 +171,7 @@ def test_mistura_filtra_corretamente():
 # ---------------------------------------------------------------------------
 
 def test_sinais_sao_case_insensitive():
-    mat_descarte = _m("ATO_PGJ", "licença Para Tratamento De SAÚDE...")
+    mat_descarte = _m("PORTARIA_PGJ", "licença Para Tratamento De SAÚDE...")
     assert filtrar_materias([mat_descarte]) == []
     mat_forte = _m("EXTRATO_CONTRATO", "extrato do contrato n. 10/2026")
     assert len(filtrar_materias([mat_forte])) == 1
