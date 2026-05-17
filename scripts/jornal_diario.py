@@ -12,6 +12,7 @@ import logging
 import sys
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlparse
 
 from scripts.baixar_pdf import baixar_pdf_do_r2
 from scripts.classificar import classificar_materia
@@ -30,29 +31,29 @@ FONTES_VALIDAS = ("MPRR", "TJRR")
 OUTPUT_DIR_DEFAULT = Path("/tmp/observatorio-roraima")
 
 
-def coletar_dia(fonte_codigo: str, data_alvo: date, r2: R2Client) -> bool:
-    """Wrapper sobre processar_fonte adaptando assinatura.
+def coletar_dia(
+    fonte_codigo: str, data_alvo: date, r2: R2Client,
+) -> str | None:
+    """Wrapper sobre processar_fonte; retorna chave R2 do PDF (ou None).
 
-    Recebe string ('MPRR' ou 'TJRR') e devolve bool indicando sucesso.
-    Internamente resolve a string para objeto Fonte e chama
-    processar_fonte do scripts.coletar.
+    processar_fonte já faz dedup internamente via r2.existe antes de
+    baixar. A chave real do PDF (que pode incluir sufixo de edição
+    no caso do MPRR) é extraída do campo url_r2 do dict retornado.
     """
     try:
         fonte_obj = get_fonte(fonte_codigo.lower())
         resultado = processar_fonte(fonte_obj, data_alvo, r2)
-        return resultado is not None
+        if resultado is None:
+            return None
+        url_r2 = resultado.get("url_r2")
+        if not url_r2:
+            return None
+        return urlparse(url_r2).path.lstrip("/")
     except Exception as e:
         logger.warning(
             f"Coleta de {fonte_codigo} para {data_alvo} falhou: {e}"
         )
-        return False
-
-
-def _construir_chave_r2(fonte_codigo: str, data_alvo: date) -> str:
-    return (
-        f"{fonte_codigo.lower()}/{data_alvo.year}/"
-        f"{data_alvo.month:02d}/{data_alvo.isoformat()}.pdf"
-    )
+        return None
 
 
 def _processar_fonte(
@@ -62,18 +63,10 @@ def _processar_fonte(
     cliente: ClienteAnthropic,
 ) -> list[Materia]:
     """Pipeline completo para 1 fonte. Retorna matérias classificadas."""
-    chave = _construir_chave_r2(fonte_codigo, data_alvo)
-
-    if not r2.existe(chave):
-        logger.info(f"PDF {chave} não no R2, disparando coletor...")
-        if not coletar_dia(fonte_codigo, data_alvo, r2):
-            logger.warning(f"Coleta falhou para {fonte_codigo}")
-            return []
-        if not r2.existe(chave):
-            logger.warning(
-                f"PDF {chave} ainda não disponível após coleta"
-            )
-            return []
+    chave = coletar_dia(fonte_codigo, data_alvo, r2)
+    if chave is None:
+        logger.warning(f"Coleta falhou para {fonte_codigo} em {data_alvo}")
+        return []
 
     try:
         pdf_bytes = baixar_pdf_do_r2(chave, r2)

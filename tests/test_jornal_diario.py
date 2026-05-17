@@ -29,6 +29,14 @@ def _materia_classificada(
     )
 
 
+def _coletar_dia_default(fonte_codigo, data_alvo, r2):
+    """Side_effect default da fixture: monta chave R2 fake por fonte."""
+    return (
+        f"{fonte_codigo.lower()}/{data_alvo.year}/"
+        f"{data_alvo.month:02d}/{data_alvo.isoformat()}-fake.pdf"
+    )
+
+
 @pytest.fixture
 def mock_pipeline(monkeypatch, tmp_path):
     """Mocka todas as dependências externas do pipeline.
@@ -44,7 +52,7 @@ def mock_pipeline(monkeypatch, tmp_path):
         "filtrar_materias": MagicMock(return_value=[]),
         "classificar_materia": MagicMock(side_effect=lambda m, c: m),
         "cliente_anthropic_class": MagicMock(),
-        "coletar_dia": MagicMock(return_value=True),
+        "coletar_dia": MagicMock(side_effect=_coletar_dia_default),
     }
 
     r2_instance = MagicMock()
@@ -77,6 +85,9 @@ def mock_pipeline(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "scripts.jornal_diario.ClienteAnthropic",
         mocks["cliente_anthropic_class"],
+    )
+    monkeypatch.setattr(
+        "scripts.jornal_diario.coletar_dia", mocks["coletar_dia"]
     )
 
     return mocks
@@ -153,40 +164,35 @@ def test_classificacao_de_uma_materia_falha_pula_e_continua(
 
 
 def test_pdf_nao_no_r2_dispara_coletor(mock_pipeline, tmp_path):
-    mock_pipeline["r2_instance"].existe.side_effect = [False, True, False, True]
-    monkeypatch_obj = pytest.MonkeyPatch()
-    try:
-        monkeypatch_obj.setattr(
-            "scripts.jornal_diario.coletar_dia",
-            mock_pipeline["coletar_dia"],
-        )
-        gerar_jornal_diario(date(2026, 4, 30), output_dir=tmp_path)
-        assert mock_pipeline["coletar_dia"].called
-    finally:
-        monkeypatch_obj.undo()
+    """coletar_dia é sempre chamado por _processar_fonte.
+
+    Após o refactor, _processar_fonte não verifica r2.existe antes
+    de chamar coletar_dia. processar_fonte do scripts.coletar já
+    faz dedup internamente. Assim, coletar_dia é invocado uma vez
+    por fonte sempre.
+    """
+    gerar_jornal_diario(date(2026, 4, 30), output_dir=tmp_path)
+    assert mock_pipeline["coletar_dia"].call_count == 2
 
 
-def test_coletor_falha_fonte_e_pulada_jornal_continua(mock_pipeline, tmp_path):
-    existe_calls = {"contador": 0}
+def test_coletor_falha_fonte_e_pulada_jornal_continua(
+    mock_pipeline, tmp_path,
+):
+    """Quando coletar_dia retorna None, fonte é pulada e o pipeline
+    NÃO chega a baixar PDF nem processar.
 
-    def existe_side_effect(*args, **kwargs):
-        existe_calls["contador"] += 1
-        return False
-
-    mock_pipeline["r2_instance"].existe.side_effect = existe_side_effect
-    mock_pipeline["coletar_dia"].return_value = False
-    monkeypatch_obj = pytest.MonkeyPatch()
-    try:
-        monkeypatch_obj.setattr(
-            "scripts.jornal_diario.coletar_dia",
-            mock_pipeline["coletar_dia"],
-        )
-        resultado = gerar_jornal_diario(
-            date(2026, 4, 30), output_dir=tmp_path,
-        )
-        assert resultado.exists()
-    finally:
-        monkeypatch_obj.undo()
+    Esse teste valida explicitamente que a lógica de fix está
+    exercida: se coletar_dia falhar, baixar_pdf não é nem tentado.
+    """
+    mock_pipeline["coletar_dia"].side_effect = lambda *a, **kw: None
+    resultado = gerar_jornal_diario(
+        date(2026, 4, 30), output_dir=tmp_path,
+    )
+    assert mock_pipeline["coletar_dia"].call_count >= 1
+    assert mock_pipeline["baixar_pdf"].call_count == 0
+    assert resultado.exists()
+    html = resultado.read_text()
+    assert "Nenhuma matéria" in html
 
 
 def test_nenhuma_materia_disponivel_gera_jornal_vazio(
