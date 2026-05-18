@@ -30,6 +30,18 @@ log "PYTHON_BIN=$PYTHON_BIN"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then
+    log "Geração concluída. Iniciando publicação no R2..."
+    "$PYTHON_BIN" -m scripts.publicar --data hoje >> "$LOG_FILE" 2>&1
+    PUB_EXIT=$?
+    if [ $PUB_EXIT -eq 0 ]; then
+        log "Publicação concluída (exit=0)"
+    else
+        log "Publicação falhou (exit=$PUB_EXIT)"
+        EXIT_CODE=$PUB_EXIT
+    fi
+fi
+
+if [ $EXIT_CODE -eq 0 ]; then
     log "Rodada concluída com sucesso (exit=0)"
 else
     log "Rodada falhou (exit=$EXIT_CODE)"

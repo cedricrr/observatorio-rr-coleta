@@ -77,13 +77,14 @@ class R2Client:
         caminho_local: Path,
         chave: str,
         metadados: dict[str, str] | None = None,
+        content_type: str = "application/pdf",
     ) -> str:
-        """Sobe o arquivo como PDF e devolve a URL pública."""
+        """Sobe o arquivo com o ContentType informado (default PDF)."""
         kwargs: dict = {
             "Bucket": self.bucket,
             "Key": chave,
             "Body": caminho_local.read_bytes(),
-            "ContentType": "application/pdf",
+            "ContentType": content_type,
         }
         if metadados is not None:
             kwargs["Metadata"] = metadados

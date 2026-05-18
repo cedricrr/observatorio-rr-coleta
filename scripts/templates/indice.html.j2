@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observatório Roraima — Arquivo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cor-primaria: #1a1a1a;
+            --cor-texto: #2c2c2c;
+            --cor-secundaria: #666;
+            --cor-fundo: #fafafa;
+            --cor-card: #ffffff;
+            --cor-divisa: #e0e0e0;
+            --max-largura: 760px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--cor-fundo);
+            color: var(--cor-texto);
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: var(--max-largura);
+            margin: 0 auto;
+        }
+
+        header.jornal-cabecalho {
+            text-align: center;
+            padding-bottom: 2rem;
+            margin-bottom: 3rem;
+            border-bottom: 2px solid var(--cor-primaria);
+        }
+
+        header.jornal-cabecalho h1 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            color: var(--cor-primaria);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        header.jornal-cabecalho .subtitulo {
+            font-family: 'Fraunces', Georgia, serif;
+            font-style: italic;
+            font-weight: 400;
+            font-size: 1.1rem;
+            color: var(--cor-secundaria);
+            margin-bottom: 1rem;
+        }
+
+        header.jornal-cabecalho .meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--cor-secundaria);
+            letter-spacing: 0.05em;
+        }
+
+        ul.lista-edicoes {
+            list-style: none;
+        }
+
+        ul.lista-edicoes li {
+            background: var(--cor-card);
+            padding: 1rem 1.5rem;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid var(--cor-primaria);
+            border-radius: 0 4px 4px 0;
+        }
+
+        ul.lista-edicoes li a {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: var(--cor-primaria);
+            text-decoration: none;
+        }
+
+        ul.lista-edicoes li a:hover {
+            color: var(--cor-secundaria);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--cor-secundaria);
+            font-style: italic;
+        }
+
+        footer.jornal-rodape {
+            margin-top: 4rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--cor-divisa);
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--cor-secundaria);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="jornal-cabecalho">
+            <h1>Observatório Roraima</h1>
+            <p class="subtitulo">Arquivo do diário editorial</p>
+            <p class="meta">{{ total_edicoes }} {{ "edição" if total_edicoes == 1 else "edições" }}</p>
+        </header>
+
+        {% if total_edicoes > 0 %}
+        <ul class="lista-edicoes">
+            {% for item in edicoes %}
+            <li><a href="{{ item.url }}">{{ item.data_formatada }}</a></li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty-state">
+            Nenhuma edição publicada ainda.
+        </div>
+        {% endif %}
+
+        <footer class="jornal-rodape">
+            <p>Gerado automaticamente pelo Observatório Roraima</p>
+        </footer>
+    </div>
+</body>
+</html>

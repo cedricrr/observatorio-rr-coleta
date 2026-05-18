@@ -137,3 +137,21 @@ def test_url_publica_formato_correto(mocker):
     r2, _ = _make_client(mocker)
 
     assert r2.url_publica("a/b/c.pdf") == "https://pub-xxx.r2.dev/a/b/c.pdf"
+
+
+def test_upload_aceita_content_type_customizado(mocker, tmp_path):
+    """upload() deve aceitar content_type kwarg para arquivos não-PDF (HTML, etc).
+
+    Necessário para Ciclo 9.4 (publicação online do jornal em HTML).
+    Default continua sendo application/pdf — coberto pelo teste
+    test_upload_chama_put_object_com_content_type_pdf acima.
+    """
+    r2, fake_s3 = _make_client(mocker)
+    arquivo = tmp_path / "jornal.html"
+    arquivo.write_text("<html></html>")
+
+    r2.upload(arquivo, "jornal/2026-05-15.html", content_type="text/html; charset=utf-8")
+
+    kwargs = fake_s3.put_object.call_args.kwargs
+    assert kwargs["ContentType"] == "text/html; charset=utf-8"
+    assert kwargs["Key"] == "jornal/2026-05-15.html"
