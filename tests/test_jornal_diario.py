@@ -248,3 +248,25 @@ def test_output_dir_default_e_tmp_observatorio(mock_pipeline):
     assert "observatorio" in str(resultado).lower()
     if resultado.exists():
         resultado.unlink()
+
+
+def test_pdf_url_usa_url_publica_do_r2(mock_pipeline, tmp_path):
+    """pdf_url passado para segmentar_materias deve vir de r2.url_publica,
+    não de placeholder example.com.
+
+    O leitor do jornal precisa do link real para o R2 para verificar
+    a matéria contra o documento oficial.
+    """
+    mock_pipeline["r2_instance"].url_publica.return_value = (
+        "https://files.pub.dev/observatorio-real/mprr/x.pdf"
+    )
+    gerar_jornal_diario(
+        date(2026, 4, 30),
+        fontes=["MPRR"],
+        output_dir=tmp_path,
+    )
+    seg_calls = mock_pipeline["segmentar_materias"].call_args_list
+    assert len(seg_calls) == 1
+    pdf_url_arg = seg_calls[0].args[2]
+    assert "files.pub.dev" in pdf_url_arg
+    assert "example.com" not in pdf_url_arg

@@ -222,3 +222,25 @@ def test_renderiza_escapa_html_em_manchete():
     html = renderizar_jornal([mat], date(2026, 4, 30))
     assert "<script>alert" not in html
     assert "&lt;script&gt;" in html or "alert" in html
+
+
+# =============================================================
+# GRUPO G — Link para a fonte primária (PDF do diário)
+# =============================================================
+
+
+def test_renderiza_inclui_link_para_pdf_original():
+    """Cada matéria deve linkar para o PDF original (fonte primária).
+
+    O leitor precisa poder verificar a manchete contra o documento
+    oficial. Sem link, o jornal vira síntese editorial sem verificável.
+    """
+    pdf_url_unica = "https://files.pub.dev/test/2026-04-30-fonte-rastreavel.pdf"
+    mat = _materia_classificada()
+    mat.pdf_url = pdf_url_unica
+    html = renderizar_jornal([mat], date(2026, 4, 30))
+    assert (
+        f'href="{pdf_url_unica}"' in html
+        or f"href='{pdf_url_unica}'" in html
+    )
+    assert "Fonte" in html

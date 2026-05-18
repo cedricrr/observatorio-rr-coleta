@@ -71,7 +71,7 @@ def _processar_fonte(
     try:
         pdf_bytes = baixar_pdf_do_r2(chave, r2)
         markdown = pdf_para_markdown(pdf_bytes)
-        pdf_url = f"https://example.com/{chave}"
+        pdf_url = r2.url_publica(chave)
         materias_brutas = segmentar_materias(
             markdown, fonte_codigo, pdf_url,
         )

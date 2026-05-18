@@ -135,6 +135,26 @@
             font-size: 0.85rem;
         }
 
+        article.materia .fonte {
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--cor-divisa);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--cor-secundaria);
+        }
+
+        article.materia .fonte a {
+            color: var(--cor-secundaria);
+            text-decoration: none;
+            border-bottom: 1px dotted var(--cor-secundaria);
+        }
+
+        article.materia .fonte a:hover {
+            color: var(--cor-primaria);
+            border-bottom-color: var(--cor-primaria);
+        }
+
         footer.jornal-rodape {
             margin-top: 4rem;
             padding-top: 1.5rem;
@@ -182,6 +202,11 @@
                         <span class="tag">{{ tag }}</span>
                         {%- endfor %}
                     </div>
+                    {%- if materia.pdf_url %}
+                    <p class="fonte">
+                        Fonte: <a href="{{ materia.pdf_url }}" target="_blank" rel="noopener">diário oficial (PDF)</a>
+                    </p>
+                    {%- endif %}
                 </article>
                 {% endfor %}
             </section>
