@@ -23,6 +23,7 @@ class ClienteAnthropic:
     DEFAULT_MODEL = "claude-sonnet-4-6"
     DEFAULT_MAX_TOKENS = 2000
     THINKING_BUDGET_TOKENS = 1024
+    DEFAULT_TEMPERATURE = 0.0
 
     def __init__(
         self,
@@ -30,6 +31,7 @@ class ClienteAnthropic:
         model: str = DEFAULT_MODEL,
         extended_thinking: bool = True,
         max_tokens: int = DEFAULT_MAX_TOKENS,
+        temperature: float = DEFAULT_TEMPERATURE,
     ):
         if api_key is None and not os.environ.get("ANTHROPIC_API_KEY"):
             raise ValueError(
@@ -40,6 +42,7 @@ class ClienteAnthropic:
         self.model = model
         self.extended_thinking = extended_thinking
         self.max_tokens = max_tokens
+        self.temperature = temperature
 
     def classificar(
         self,
@@ -78,6 +81,11 @@ class ClienteAnthropic:
                 "type": "enabled",
                 "budget_tokens": self.THINKING_BUDGET_TOKENS,
             }
+        else:
+            # Idempotência (Ciclo 10.1): temperatura determinística só é
+            # aceita pela API sem extended thinking — com thinking ligado a
+            # API exige temperature=1, então omitimos o parâmetro nesse caso.
+            kwargs["temperature"] = self.temperature
 
         resposta = self._client.messages.create(**kwargs)
 

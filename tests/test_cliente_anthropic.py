@@ -163,3 +163,59 @@ def test_classificar_propaga_excecao_da_api():
 
     with pytest.raises(RuntimeError, match="API down"):
         cliente.classificar("teste")
+
+
+# ---------------------------------------------------------------------------
+# GRUPO D — Idempotência: temperature determinística (Ciclo 10.1)
+# ---------------------------------------------------------------------------
+# Decisão 10.1: classificação editorial determinística via temperature=0.0.
+# A API exige temperature=1 quando extended thinking está ligado, então só
+# enviamos temperature no caminho sem thinking (o usado em produção por
+# jornal_diario, que instancia ClienteAnthropic(extended_thinking=False)).
+
+def test_temperature_default_e_zero():
+    cliente = ClienteAnthropic(api_key="sk-ant-test")
+    assert cliente.temperature == 0.0
+
+
+def test_classificar_sem_thinking_passa_temperature_zero():
+    # Caminho de produção (jornal_diario usa extended_thinking=False).
+    cliente = ClienteAnthropic(api_key="sk-ant-test", extended_thinking=False)
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = _criar_resposta_mock("x")
+    cliente._client = mock_client
+
+    cliente.classificar("teste")
+
+    call_kwargs = mock_client.messages.create.call_args.kwargs
+    assert call_kwargs["temperature"] == 0.0
+
+
+def test_classificar_com_thinking_nao_passa_temperature():
+    # Guard do conflito: thinking ligado ⇒ temperature deve ser omitida
+    # (a API rejeitaria temperature != 1 com thinking habilitado).
+    cliente = ClienteAnthropic(api_key="sk-ant-test", extended_thinking=True)
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = _criar_resposta_mock("x")
+    cliente._client = mock_client
+
+    cliente.classificar("teste")
+
+    call_kwargs = mock_client.messages.create.call_args.kwargs
+    assert "temperature" not in call_kwargs
+
+
+def test_classificar_respeita_temperature_customizada():
+    cliente = ClienteAnthropic(
+        api_key="sk-ant-test",
+        extended_thinking=False,
+        temperature=0.7,
+    )
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = _criar_resposta_mock("x")
+    cliente._client = mock_client
+
+    cliente.classificar("teste")
+
+    call_kwargs = mock_client.messages.create.call_args.kwargs
+    assert call_kwargs["temperature"] == 0.7
