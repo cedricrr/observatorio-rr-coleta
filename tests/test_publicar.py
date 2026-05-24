@@ -165,6 +165,13 @@ def test_publicar_indice_sobe_em_jornal_index_html(mock_r2):
     assert kwargs["content_type"] == "text/html; charset=utf-8"
 
 
+def test_publicar_indice_passa_cache_control_curto(mock_r2):
+    """Ciclo 10.2: índice sobe com max-age curto p/ evitar índice stale no CDN."""
+    publicar_indice("<html></html>", mock_r2)
+    kwargs = mock_r2.upload.call_args.kwargs
+    assert kwargs["cache_control"] == "public, max-age=300"
+
+
 # =============================================================
 # publicar_tudo (orquestrador)
 # =============================================================

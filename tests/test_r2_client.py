@@ -155,3 +155,35 @@ def test_upload_aceita_content_type_customizado(mocker, tmp_path):
     kwargs = fake_s3.put_object.call_args.kwargs
     assert kwargs["ContentType"] == "text/html; charset=utf-8"
     assert kwargs["Key"] == "jornal/2026-05-15.html"
+
+
+def test_upload_aceita_cache_control(mocker, tmp_path):
+    """upload() deve aceitar cache_control kwarg, mapeado para CacheControl no put_object.
+
+    Necessário para Ciclo 10.2 — índice com max-age curto contra stale CDN.
+    """
+    r2, fake_s3 = _make_client(mocker)
+    arquivo = tmp_path / "index.html"
+    arquivo.write_text("<html></html>")
+
+    r2.upload(
+        arquivo,
+        "jornal/index.html",
+        content_type="text/html; charset=utf-8",
+        cache_control="public, max-age=300",
+    )
+
+    kwargs = fake_s3.put_object.call_args.kwargs
+    assert kwargs["CacheControl"] == "public, max-age=300"
+
+
+def test_upload_sem_cache_control_nao_inclui_header(mocker, tmp_path):
+    """Sem cache_control, put_object não recebe CacheControl (default imutável p/ PDFs)."""
+    r2, fake_s3 = _make_client(mocker)
+    arquivo = tmp_path / "x.pdf"
+    arquivo.write_bytes(b"PDF")
+
+    r2.upload(arquivo, "k/x.pdf")
+
+    kwargs = fake_s3.put_object.call_args.kwargs
+    assert "CacheControl" not in kwargs

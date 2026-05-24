@@ -78,8 +78,14 @@ class R2Client:
         chave: str,
         metadados: dict[str, str] | None = None,
         content_type: str = "application/pdf",
+        cache_control: str | None = None,
     ) -> str:
-        """Sobe o arquivo com o ContentType informado (default PDF)."""
+        """Sobe o arquivo com o ContentType informado (default PDF).
+
+        Se cache_control for fornecido, vira o header Cache-Control do objeto
+        (ex.: índice com max-age curto). Sem ele, o objeto não recebe o header
+        e fica sujeito ao cache padrão do CDN — adequado a PDFs imutáveis.
+        """
         kwargs: dict = {
             "Bucket": self.bucket,
             "Key": chave,
@@ -88,6 +94,8 @@ class R2Client:
         }
         if metadados is not None:
             kwargs["Metadata"] = metadados
+        if cache_control is not None:
+            kwargs["CacheControl"] = cache_control
         self.client.put_object(**kwargs)
         return self.url_publica(chave)
 

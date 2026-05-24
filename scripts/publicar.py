@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 PREFIXO_R2 = "jornal/"
 CHAVE_INDICE = "jornal/index.html"
 CONTENT_TYPE_HTML = "text/html; charset=utf-8"
+# Índice muda a cada publicação; max-age curto evita servir índice stale do CDN
+# (os HTMLs de edição são imutáveis e sobem sem Cache-Control).
+CACHE_CONTROL_INDICE = "public, max-age=300"
 DIARIOS_DIR_DEFAULT = Path("data/diarios")
 OUTPUT_DIR_DEFAULT = Path("/tmp/observatorio-roraima")
 
@@ -103,6 +106,7 @@ def publicar_indice(html_indice: str, r2: R2Client) -> str:
             tmp_path,
             CHAVE_INDICE,
             content_type=CONTENT_TYPE_HTML,
+            cache_control=CACHE_CONTROL_INDICE,
         )
     finally:
         tmp_path.unlink(missing_ok=True)
