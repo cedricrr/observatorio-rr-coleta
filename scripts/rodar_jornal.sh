@@ -16,6 +16,23 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
 }
 
+# WEBHOOK_URL (Ciclo 10.4): notificação de falha opcional. O launchd não injeta
+# env vars, então lemos do .env do projeto (env já presente tem precedência).
+# Extrai só essa chave em vez de dar source no .env inteiro (evita avaliar
+# valores com aspas/espaços de outras variáveis).
+WEBHOOK_URL="${WEBHOOK_URL:-$(grep -E '^WEBHOOK_URL=' "$PROJECT_ROOT/.env" 2>/dev/null | head -1 | cut -d= -f2-)}"
+
+notificar_falha() {
+    [ -n "${WEBHOOK_URL:-}" ] || return 0
+    if curl -fsS -m 10 -X POST "$WEBHOOK_URL" \
+        -H "Content-Type: application/json" \
+        -d "{\"text\": \"$1\"}" >> "$LOG_FILE" 2>&1; then
+        log "Webhook de falha enviado"
+    else
+        log "Webhook de falha NÃO enviado (curl falhou)"
+    fi
+}
+
 cd "$PROJECT_ROOT" || { log "ERRO: cd para $PROJECT_ROOT falhou"; exit 2; }
 
 log "===== Rodada iniciada ====="
@@ -45,6 +62,7 @@ if [ $EXIT_CODE -eq 0 ]; then
     log "Rodada concluída com sucesso (exit=0)"
 else
     log "Rodada falhou (exit=$EXIT_CODE)"
+    notificar_falha "Observatório RR: rodada do jornal falhou (exit=$EXIT_CODE) em $(date '+%Y-%m-%d %H:%M')"
 fi
 
 exit $EXIT_CODE
