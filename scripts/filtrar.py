@@ -43,14 +43,21 @@ SINAIS_INCLUSAO_FORTE: list[str] = [
     r"DELEGAÇÕES\s+DE\s+SERVENTIAS",
     r"Lei\s+Antifacção",
     r"Lotar.*Cibersegurança",
+    # Instauração de investigação (IC/PA): alto valor mesmo quando vem na
+    # família PORTARIA (Ciclo 10.5b). Quando vem como EXTRATO DA PORTARIA DE
+    # INSTAURAÇÃO já passa por tipo; este sinal cobre a forma PORTARIA.
+    r"INSTAURAÇÃO",
 ]
 
 
+# Famílias do segmentar (Ciclo 10.5a) sempre relevantes: EXTRATO (gasto/
+# tramitação) e AVISO (licitação) no MPRR, EMENDA_REGIMENTAL no TJRR. A
+# família PORTARIA fica de fora (mistura atos PGJ com DG administrativo) —
+# exige SINAL_INCLUSAO_FORTE para passar.
 TIPOS_SEMPRE_RELEVANTES: set[str] = {
-    "PORTARIA_PGJ",
+    "EXTRATO",
+    "AVISO",
     "EMENDA_REGIMENTAL",
-    "DISPENSA_LICITACAO",
-    "INSTAURACAO_IC",
 }
 
 
