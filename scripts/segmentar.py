@@ -28,44 +28,30 @@ class Materia:
 
 
 PADROES_MPRR: list[tuple[str, str]] = [
-    # PORTARIA PGJ — formato real do MPRR:
-    # **PORTARIA - Nº 1125662 - PGJ, 29 DE ABRIL DE 2026**
-    # 21 ocorrências/edição em média. Hífens podem ser '-' OU '–'.
-    (
-        r"\*\*\s*PORTARIA\s*[-–]\s*Nº\s*\d+\s*[-–]\s*PGJ[^\n*]*\*\*",
-        "PORTARIA_PGJ",
-    ),
+    # Famílias reais do MPRR (Ciclo 10.5a), validadas contra 3 edições reais
+    # congeladas em tests/fixtures/ (2022-04-19, 2026-04-10, 2026-05-20).
+    # O pymupdf4llm renderiza os cabeçalhos como blocos **bold** de linha
+    # inteira; o hífen antes do "Nº" e o sufixo (PGJ/DG/DA/...) variam por
+    # período, então casamos amplo por família (recall-first) e deixamos
+    # filtrar/classificar decidirem relevância editorial. `(?m)` ancora no
+    # início de cada linha — exclui menções inline e ruído (R E S O L V E,
+    # assinaturas). Ver [[project_bug_padroes_mprr_markdown_real]].
+    #
+    # PORTARIA — atos (PGJ, DG, DA, instauração de PA/IC etc.):
+    #   **PORTARIA - Nº 1136395 - PGJ, 19 DE MAIO DE 2026**
+    #   **PORTARIA Nº 0493746 - PGJ, DE 18 DE ABRIL DE 2022**  (sem hífen)
+    (r"(?m)^\*\*\s*PORTARIA\b[^\n*]*\*\*", "PORTARIA"),
 
-    # PORTARIA DE INSTAURAÇÃO — formato real (título pode estar
-    # quebrado em 2 blocos ** consecutivos pelo pymupdf4llm):
-    # **PORTARIA Nº 022/2026 – MP/PJ/SLA – DE INSTAURAÇÃO DO PA Nº ...**
-    # Regex casa apenas o primeiro bloco com a palavra INSTAURAÇÃO.
-    (
-        r"\*\*\s*PORTARIA\s+Nº\s*\d+[^\n*]*INSTAURAÇÃO[^\n*]*\*\*",
-        "INSTAURACAO_IC",
-    ),
+    # EXTRATO — gasto e tramitação (nota de empenho, termo aditivo ao
+    # contrato, da portaria de instauração/arquivamento/procedimento):
+    #   **EXTRATO DE NOTA DE EMPENHO**
+    #   **EXTRATO DO 2º TERMO ADITIVO AO CONTRATO Nº 36/2021 – ...**
+    #   **EXTRATO DA PORTARIA DE ARQUIVAMENTO PA SIMP Nº ...**
+    (r"(?m)^\*\*\s*EXTRATO\b[^\n*]*\*\*", "EXTRATO"),
 
-    # EXTRATO DO CONTRATO — formato real dentro de tabela Markdown,
-    # SEM cercadura **, com <br> separando linhas:
-    # ...<br>EXTRATO DO CONTRATO Nº 34/2026 – PROCESSO ...<br>...
-    # Padrão para no <br> ou \n para isolar só o título.
-    (
-        r"EXTRATO\s+D[OE]\s+CONTRATO\s+Nº?\s*\d+[^\n<]*",
-        "EXTRATO_CONTRATO",
-    ),
-
-    # EXTRATO DE DISPENSA DE LICITAÇÃO — similar (tabela, sem **).
-    (
-        r"EXTRATO\s+DE\s+DISPENSA\s+DE\s+LICITAÇÃO[^\n<]*",
-        "DISPENSA_LICITACAO",
-    ),
-
-    # EXTRATO DE TERMO ADITIVO — tipo novo descoberto no refactor.
-    # Mesma estrutura de tabela.
-    (
-        r"EXTRATO\s+DE\s+TERMO\s+ADITIVO[^\n<]*",
-        "TERMO_ADITIVO",
-    ),
+    # AVISO — licitações:
+    #   **AVISO DE LICITAÇÃO**  /  **AVISO DE REABERTURA DE LICITAÇÃO**
+    (r"(?m)^\*\*\s*AVISO\b[^\n*]*\*\*", "AVISO"),
 ]
 
 PADROES_TJRR: list[tuple[str, str]] = [
