@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from scripts import jornal_diario as jd
 from scripts.jornal_diario import gerar_jornal_diario
 from scripts.segmentar import Materia
 
@@ -270,3 +271,67 @@ def test_pdf_url_usa_url_publica_do_r2(mock_pipeline, tmp_path):
     pdf_url_arg = seg_calls[0].args[2]
     assert "files.pub.dev" in pdf_url_arg
     assert "example.com" not in pdf_url_arg
+
+
+# =============================================================
+# GRUPO E — processar_chave: pipeline a partir da chave (Ciclo 10.6a)
+# =============================================================
+# Caminho de publicação que NÃO re-coleta — usa a chave R2 já conhecida
+# (vinda dos JSONs locais no backfill 10.6b). Evita re-discover nos portais
+# (que falharia para datas antigas, gerando jornal vazio mesmo com PDF no R2).
+
+
+def test_processar_chave_nao_recoleta(mock_pipeline):
+    mock_pipeline["filtrar_materias"].return_value = [
+        _materia_classificada(orgao="MPRR", relevante=True),
+    ]
+    chave = "mprr/2026/04/2026-04-30-939.pdf"
+
+    materias = jd.processar_chave(
+        chave, "MPRR", mock_pipeline["r2_instance"], MagicMock(),
+    )
+
+    assert len(materias) == 1
+    # NÃO chama coletar_dia (sem discover nos portais)
+    assert mock_pipeline["coletar_dia"].call_count == 0
+    # usa a chave fornecida diretamente no download
+    assert mock_pipeline["baixar_pdf"].call_args.args[0] == chave
+
+
+def test_processar_chave_usa_url_publica_da_chave(mock_pipeline):
+    mock_pipeline["r2_instance"].url_publica.return_value = "https://pub/x.pdf"
+
+    jd.processar_chave(
+        "mprr/x.pdf", "MPRR", mock_pipeline["r2_instance"], MagicMock(),
+    )
+
+    seg_calls = mock_pipeline["segmentar_materias"].call_args_list
+    assert seg_calls[0].args[2] == "https://pub/x.pdf"
+
+
+def test_processar_chave_pipeline_falha_retorna_vazio(mock_pipeline):
+    mock_pipeline["baixar_pdf"].side_effect = RuntimeError("R2 down")
+
+    materias = jd.processar_chave(
+        "mprr/x.pdf", "MPRR", mock_pipeline["r2_instance"], MagicMock(),
+    )
+
+    assert materias == []
+
+
+def test_processar_chave_classificacao_de_uma_materia_falha_continua(mock_pipeline):
+    m1 = _materia_classificada(orgao="MPRR", manchete="FALHA")
+    m2 = _materia_classificada(orgao="MPRR", manchete="OK")
+    mock_pipeline["filtrar_materias"].return_value = [m1, m2]
+    mock_pipeline["classificar_materia"].side_effect = [
+        ValueError("classificação falhou"),
+        m2,
+    ]
+
+    materias = jd.processar_chave(
+        "mprr/x.pdf", "MPRR", mock_pipeline["r2_instance"], MagicMock(),
+    )
+
+    manchetes = [m.manchete for m in materias]
+    assert "OK" in manchetes
+    assert "FALHA" not in manchetes

@@ -56,18 +56,21 @@ def coletar_dia(
         return None
 
 
-def _processar_fonte(
+def processar_chave(
+    chave: str,
     fonte_codigo: str,
-    data_alvo: date,
     r2: R2Client,
     cliente: ClienteAnthropic,
 ) -> list[Materia]:
-    """Pipeline completo para 1 fonte. Retorna matérias classificadas."""
-    chave = coletar_dia(fonte_codigo, data_alvo, r2)
-    if chave is None:
-        logger.warning(f"Coleta falhou para {fonte_codigo} em {data_alvo}")
-        return []
+    """Pipeline de publicação a partir de uma chave R2 já conhecida.
 
+    Não re-coleta: baixa o PDF da chave informada, converte, segmenta,
+    filtra e classifica. Usado pelo backfill de publicação (Ciclo 10.6),
+    que conhece a chave pelos JSONs locais e não deve re-discover nos
+    portais (discover de data antiga pode falhar e gerar jornal vazio
+    mesmo com o PDF já no R2). Resiliente por estágio: falha de
+    pipeline → []; falha de classificação de UMA matéria → pula.
+    """
     try:
         pdf_bytes = baixar_pdf_do_r2(chave, r2)
         markdown = pdf_para_markdown(pdf_bytes)
@@ -77,7 +80,9 @@ def _processar_fonte(
         )
         materias_filtradas = filtrar_materias(materias_brutas)
     except Exception as e:
-        logger.error(f"Pipeline falhou para {fonte_codigo}: {e}")
+        logger.error(
+            f"Pipeline falhou para {fonte_codigo} (chave {chave}): {e}"
+        )
         return []
 
     classificadas = []
@@ -91,6 +96,20 @@ def _processar_fonte(
             )
             continue
     return classificadas
+
+
+def _processar_fonte(
+    fonte_codigo: str,
+    data_alvo: date,
+    r2: R2Client,
+    cliente: ClienteAnthropic,
+) -> list[Materia]:
+    """Caminho diário: coleta inline (com discover) e delega a processar_chave."""
+    chave = coletar_dia(fonte_codigo, data_alvo, r2)
+    if chave is None:
+        logger.warning(f"Coleta falhou para {fonte_codigo} em {data_alvo}")
+        return []
+    return processar_chave(chave, fonte_codigo, r2, cliente)
 
 
 def gerar_jornal_diario(
