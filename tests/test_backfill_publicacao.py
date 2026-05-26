@@ -211,3 +211,38 @@ def test_executar_backfill_erro_em_uma_data_marca_e_continua(loop_mocks, tmp_pat
     bp.executar_backfill(tmp_path, MagicMock(), MagicMock(), tmp_path, ck)
     assert sorted(it["status"] for it in ck.itens) == ["erro", "sucesso", "sucesso"]
     loop_mocks["publicar_indice"].assert_called_once()
+
+
+# =============================================================
+# GRUPO D — Filtragem por intervalo (Ciclo 10.6c)
+# =============================================================
+
+def test_executar_backfill_filtra_por_de_e_ate(loop_mocks, tmp_path):
+    # mapa cobre 05-18, 05-19, 05-20. Filtrar para [05-19, 05-20].
+    ck = _checkpoint()
+    bp.executar_backfill(
+        tmp_path, MagicMock(), MagicMock(), tmp_path, ck,
+        de=date(2026, 5, 19), ate=date(2026, 5, 20),
+    )
+    datas = {c.args[0] for c in loop_mocks["processar_data"].call_args_list}
+    assert datas == {date(2026, 5, 19), date(2026, 5, 20)}
+
+
+def test_executar_backfill_filtra_apenas_de(loop_mocks, tmp_path):
+    ck = _checkpoint()
+    bp.executar_backfill(
+        tmp_path, MagicMock(), MagicMock(), tmp_path, ck,
+        de=date(2026, 5, 20),
+    )
+    datas = [c.args[0] for c in loop_mocks["processar_data"].call_args_list]
+    assert datas == [date(2026, 5, 20)]
+
+
+def test_executar_backfill_filtra_apenas_ate(loop_mocks, tmp_path):
+    ck = _checkpoint()
+    bp.executar_backfill(
+        tmp_path, MagicMock(), MagicMock(), tmp_path, ck,
+        ate=date(2026, 5, 18),
+    )
+    datas = [c.args[0] for c in loop_mocks["processar_data"].call_args_list]
+    assert datas == [date(2026, 5, 18)]

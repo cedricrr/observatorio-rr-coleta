@@ -8,14 +8,19 @@ pula datas cujo jornal já existe no R2.
 
 from __future__ import annotations
 
+import argparse
 import json
+import logging
 import re
-from datetime import date
+import sys
+from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
 from scripts.backfill import (
     Checkpoint,
+    carregar_checkpoint,
+    gerar_relatorio,
     gravar_checkpoint,
     ja_processado,
     marcar_processado,
@@ -111,6 +116,8 @@ def executar_backfill(
     output_dir: Path,
     checkpoint: Checkpoint,
     *,
+    de: date | None = None,
+    ate: date | None = None,
     dry_run: bool = False,
     limite: int | None = None,
     caminho_checkpoint: Path | None = None,
@@ -121,9 +128,13 @@ def executar_backfill(
     try/finally (interrupções/crashes preservam progresso para `--retomar`).
     `dry_run` apenas marca `pulado_dedupe` sem gerar nada. O índice é
     regenerado UMA vez no fim (não a cada data) — exceto em dry_run.
+    `de`/`ate` filtram inclusivos; `limite` corta após o filtro.
     """
     mapa = mapear_chaves(diarios_dir)
-    datas = sorted(mapa.keys(), reverse=True)
+    datas = sorted(
+        (d for d in mapa.keys() if (de is None or d >= de) and (ate is None or d <= ate)),
+        reverse=True,
+    )
     if limite is not None:
         datas = datas[:limite]
 
@@ -155,3 +166,81 @@ def executar_backfill(
         publicar_indice(html_indice, r2)
 
     return checkpoint
+
+
+_OUTPUT_DIR_DEFAULT = Path("/tmp/observatorio-roraima")
+_DIARIOS_DIR_DEFAULT = Path("data/diarios")
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Entry point CLI do backfill de publicação."""
+    parser = argparse.ArgumentParser(
+        description="Backfill de publicação editorial do Observatório Roraima",
+    )
+    parser.add_argument("--de", help="Data inicial inclusiva YYYY-MM-DD")
+    parser.add_argument("--ate", help="Data final inclusiva YYYY-MM-DD")
+    parser.add_argument(
+        "--limite", type=int, help="Máximo de datas a processar (calibração)",
+    )
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--retomar", action="store_true")
+    parser.add_argument(
+        "--diarios-dir", type=Path, default=_DIARIOS_DIR_DEFAULT,
+        help=f"Diretório de origem dos JSONs. Default: {_DIARIOS_DIR_DEFAULT}",
+    )
+    parser.add_argument(
+        "--output", type=Path, default=_OUTPUT_DIR_DEFAULT,
+        help=f"Diretório de HTMLs gerados. Default: {_OUTPUT_DIR_DEFAULT}",
+    )
+
+    args = parser.parse_args(argv)
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+
+    de = date.fromisoformat(args.de) if args.de else None
+    ate = date.fromisoformat(args.ate) if args.ate else None
+    if de and ate and de > ate:
+        parser.error(f"--de ({de}) > --ate ({ate})")
+
+    sufixo = ""
+    if de or ate:
+        sufixo = f"-{de or '...'}-a-{ate or '...'}"
+    escopo = f"publicacao{sufixo}"
+    caminho_ckpt = Path("data/backfill") / f"{escopo}.json"
+
+    checkpoint: Checkpoint | None = None
+    if args.retomar:
+        checkpoint = carregar_checkpoint(caminho_ckpt)
+    if checkpoint is None:
+        agora = datetime.now().isoformat()
+        checkpoint = Checkpoint(
+            escopo=escopo, iniciado_em=agora, atualizado_em=agora,
+            itens=[],
+            config={
+                "modo": "publicacao",
+                "de": args.de, "ate": args.ate,
+                "limite": args.limite,
+                "dry_run": args.dry_run,
+            },
+        )
+
+    r2 = R2Client.from_env()
+    cliente = ClienteAnthropic(extended_thinking=False)
+
+    checkpoint = executar_backfill(
+        args.diarios_dir, r2, cliente, args.output, checkpoint,
+        de=de, ate=ate, dry_run=args.dry_run, limite=args.limite,
+        caminho_checkpoint=caminho_ckpt,
+    )
+
+    print(gerar_relatorio(checkpoint))
+
+    houve_erro = any(it["status"] == "erro" for it in checkpoint.itens)
+    return 1 if houve_erro else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
