@@ -11,10 +11,13 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
+from botocore.exceptions import ClientError
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from scripts.r2_client import R2Client
 from scripts.renderizar import _formatar_data_pt_br
+
+RESUMO_MAX_CHARS = 280
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +125,84 @@ def publicar_sidecar(
         tmp_path.unlink(missing_ok=True)
     logger.info(f"Sidecar publicado: {url}")
     return url
+
+
+def baixar_sidecar(data_edicao: date, r2: R2Client) -> dict | None:
+    """Baixa e parseia jornal/AAAA-MM-DD.json do R2. None se 404/NoSuchKey."""
+    chave = f"{PREFIXO_R2}{data_edicao.isoformat()}.json"
+    try:
+        bytes_ = r2.download_bytes(chave)
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code in ("404", "NoSuchKey", "NoSuchBucket"):
+            return None
+        raise
+    return json.loads(bytes_.decode("utf-8"))
+
+
+def _truncar_resumo(texto: str | None) -> str | None:
+    """Trunca resumo a RESUMO_MAX_CHARS adicionando reticência se cortou."""
+    if texto is None or len(texto) <= RESUMO_MAX_CHARS:
+        return texto
+    return texto[:RESUMO_MAX_CHARS].rstrip() + "…"
+
+
+def _ordem_destaque(item: dict) -> tuple:
+    """Chave de ordenação: (data desc, valor desc com None=0)."""
+    return (
+        item["_data"],
+        item["materia"]["valor_rs"] or 0,
+    )
+
+
+def agregar_destaques_recentes(
+    datas: list[date],
+    r2: R2Client,
+    n_sidecars: int = 10,
+    k_destaques: int = 8,
+) -> tuple[dict | None, list[dict], list[dict]]:
+    """Baixa os N sidecars mais recentes e escolhe top-K matérias.
+
+    Ordena por (data_edicao desc, valor_rs desc com None=0).
+    Retorna (hero, grid, edicoes_meta):
+      - hero = top-1 (ou None se nada);
+      - grid = próximos K-1 (até K-1 cards);
+      - edicoes_meta = lista de dicts {data_edicao, data_formatada,
+        url_jornal, total_relevantes} para a seção "Arquivo".
+
+    `resumo` é truncado a 280 chars no item retornado; o sidecar no R2
+    permanece integral.
+    """
+    edicoes_meta: list[dict] = []
+    candidatos: list[dict] = []
+    for d in datas[:n_sidecars]:
+        sidecar = baixar_sidecar(d, r2)
+        if sidecar is None:
+            continue
+        edicoes_meta.append({
+            "data_edicao": sidecar["data_edicao"],
+            "data_formatada": sidecar["data_formatada"],
+            "url_jornal": sidecar["url_jornal"],
+            "total_relevantes": sidecar["total_relevantes"],
+        })
+        for m in sidecar["materias"]:
+            candidatos.append({"_data": d, "materia": m})
+
+    candidatos.sort(key=_ordem_destaque, reverse=True)
+    top = candidatos[:k_destaques]
+
+    def _vista(item: dict) -> dict:
+        m = dict(item["materia"])
+        m["resumo"] = _truncar_resumo(m.get("resumo"))
+        m["data_edicao"] = item["_data"].isoformat()
+        return m
+
+    if not top:
+        return None, [], edicoes_meta
+
+    hero = _vista(top[0])
+    grid = [_vista(it) for it in top[1:]]
+    return hero, grid, edicoes_meta
 
 
 def publicar_indice(html_indice: str, r2: R2Client) -> str:
