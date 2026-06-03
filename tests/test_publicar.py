@@ -20,13 +20,24 @@ from scripts.publicar import (
 
 @pytest.fixture
 def mock_r2():
-    """R2Client mock — upload retorna URL pública canônica."""
+    """R2Client mock — upload retorna URL pública canônica.
+
+    `download_bytes` levanta 404 por default — testes que querem retornar
+    sidecar real precisam sobrescrever `download_bytes.side_effect`.
+    Isso evita que publicar_tudo/gerar_indice tropeçem ao tentar baixar
+    sidecars que o teste não preparou.
+    """
+    from botocore.exceptions import ClientError
+
     r2 = MagicMock()
 
     def _upload_side_effect(caminho, chave, *args, **kwargs):
         return f"https://pub-xxx.r2.dev/{chave}"
 
     r2.upload.side_effect = _upload_side_effect
+    r2.download_bytes.side_effect = ClientError(
+        {"Error": {"Code": "404"}}, "GetObject",
+    )
     return r2
 
 
@@ -356,7 +367,7 @@ def _materia_dict(
 
 
 def test_baixar_sidecar_parseia_json_quando_existe(mock_r2):
-    mock_r2.download_bytes.return_value = _sidecar_bytes(
+    mock_r2.download_bytes.side_effect = lambda chave: _sidecar_bytes(
         "2026-05-15", [_materia_dict()],
     )
     d = baixar_sidecar(date(2026, 5, 15), mock_r2)
@@ -650,3 +661,91 @@ def test_template_valor_rs_aparece_em_formato_brl_no_hero():
     html = _render_indice(hero=hero)
     # 987.654,32 (formato brasileiro)
     assert "987.654,32" in html
+
+
+# =============================================================
+# gerar_indice com r2 — Ciclo 11.9
+# =============================================================
+
+
+def test_gerar_indice_sem_r2_e_modo_degradado(tmp_path):
+    """Sem r2, gerar_indice continua produzindo só a lista (sem hero/grid)."""
+    _criar_jsons(tmp_path, {"mprr": ["2026-05-15-961"]})
+    html = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
+    assert 'class="hero"' not in html
+    assert 'class="card-destaque"' not in html
+    # link da lista compacta presente
+    assert "jornal/2026-05-15.html" in html
+
+
+def test_gerar_indice_com_r2_baixa_sidecars_e_renderiza_hero(mock_r2, tmp_path):
+    _criar_jsons(tmp_path, {"mprr": ["2026-05-15-961"]})
+    mock_r2.download_bytes.side_effect = lambda chave: _sidecar_bytes(
+        "2026-05-15",
+        [
+            _materia_dict(
+                manchete="DESTAQUE PRINCIPAL", valor_rs=999000.0,
+            ),
+        ],
+    )
+    html = gerar_indice(
+        tmp_path, public_domain="pub-xxx.r2.dev", r2=mock_r2,
+    )
+    assert 'class="hero"' in html
+    assert "DESTAQUE PRINCIPAL" in html
+
+
+def test_gerar_indice_com_r2_passa_total_relevantes_do_sidecar(
+    mock_r2, tmp_path,
+):
+    _criar_jsons(
+        tmp_path,
+        {"mprr": ["2026-05-15-961", "2026-05-14-960"]},
+    )
+
+    def fake_download(chave):
+        if "2026-05-15" in chave:
+            return _sidecar_bytes(
+                "2026-05-15", [_materia_dict()] * 5,
+            )
+        if "2026-05-14" in chave:
+            return _sidecar_bytes(
+                "2026-05-14", [_materia_dict()] * 3,
+            )
+        return b"{}"
+
+    mock_r2.download_bytes.side_effect = fake_download
+
+    html = gerar_indice(
+        tmp_path, public_domain="pub-xxx.r2.dev", r2=mock_r2,
+    )
+    assert "5 matérias" in html
+    assert "3 matérias" in html
+
+
+def test_gerar_indice_com_r2_404_em_uma_data_nao_quebra(
+    mock_r2, tmp_path,
+):
+    from botocore.exceptions import ClientError
+
+    _criar_jsons(
+        tmp_path,
+        {"mprr": ["2026-05-15-961", "2026-05-14-960"]},
+    )
+
+    def fake_download(chave):
+        if "2026-05-15" in chave:
+            return _sidecar_bytes(
+                "2026-05-15", [_materia_dict(manchete="OK")],
+            )
+        raise ClientError({"Error": {"Code": "404"}}, "GetObject")
+
+    mock_r2.download_bytes.side_effect = fake_download
+
+    html = gerar_indice(
+        tmp_path, public_domain="pub-xxx.r2.dev", r2=mock_r2,
+    )
+    # hero do sidecar disponível, lista ainda lista as duas datas (404 não
+    # apaga a edição da lista compacta — o HTML do jornal continua existindo)
+    assert "OK" in html
+    assert "jornal/2026-05-14.html" in html

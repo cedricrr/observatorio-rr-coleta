@@ -76,13 +76,26 @@ def coletar_datas_publicaveis(diarios_dir: Path) -> list[date]:
 def gerar_indice(
     diarios_dir: Path = DIARIOS_DIR_DEFAULT,
     public_domain: str | None = None,
+    r2: R2Client | None = None,
 ) -> str:
     """Renderiza HTML do índice listando todas as edições publicáveis.
 
-    Em modo degradado (sem `r2` / sem sidecars), passa apenas a lista de
-    `edicoes` com `total_relevantes=0`; hero e destaques ficam vazios.
+    Quando `r2` é fornecido, baixa os sidecars JSON dos jornais mais
+    recentes e renderiza hero + grid de destaques (Ciclos 11.7/11.8).
+    Sem `r2`, modo degradado: só a lista compacta de edições, hero=None.
     """
     datas = coletar_datas_publicaveis(diarios_dir)
+    hero = None
+    destaques: list[dict] = []
+    sidecars_por_iso: dict[str, dict] = {}
+
+    if r2 is not None and datas:
+        hero, destaques, edicoes_meta = agregar_destaques_recentes(
+            datas, r2,
+        )
+        for em in edicoes_meta:
+            sidecars_por_iso[em["data_edicao"]] = em
+
     edicoes = []
     for d in datas:
         iso = d.isoformat()
@@ -90,19 +103,26 @@ def gerar_indice(
             url = f"https://{public_domain}/{PREFIXO_R2}{iso}.html"
         else:
             url = f"{iso}.html"
+        meta_real = sidecars_por_iso.get(iso)
         edicoes.append(
             {
                 "data_edicao": iso,
-                "data_formatada": _formatar_data_pt_br(d),
-                "url_jornal": url,
-                "total_relevantes": 0,
+                "data_formatada": (
+                    meta_real["data_formatada"]
+                    if meta_real
+                    else _formatar_data_pt_br(d)
+                ),
+                "url_jornal": meta_real["url_jornal"] if meta_real else url,
+                "total_relevantes": (
+                    meta_real["total_relevantes"] if meta_real else 0
+                ),
             }
         )
     data_ultima = _formatar_data_pt_br(datas[0]) if datas else None
     template = _env.get_template("indice.html.j2")
     return template.render(
-        hero=None,
-        destaques=[],
+        hero=hero,
+        destaques=destaques,
         edicoes=edicoes,
         total_edicoes=len(edicoes),
         data_ultima_formatada=data_ultima,
@@ -252,7 +272,9 @@ def publicar_tudo(
         sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
         publicar_sidecar(sidecar, r2, data_edicao)
     public_domain = r2.public_domain if hasattr(r2, "public_domain") else None
-    html_indice = gerar_indice(diarios_dir, public_domain=public_domain)
+    html_indice = gerar_indice(
+        diarios_dir, public_domain=public_domain, r2=r2,
+    )
     url_indice = publicar_indice(html_indice, r2)
     return url_jornal, url_indice
 
@@ -292,7 +314,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.apenas_indice:
-            html = gerar_indice(public_domain=r2.public_domain)
+            html = gerar_indice(public_domain=r2.public_domain, r2=r2)
             url = publicar_indice(html, r2)
             print(f"Índice publicado: {url}")
         else:
