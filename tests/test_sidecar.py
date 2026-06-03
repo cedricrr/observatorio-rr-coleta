@@ -1,9 +1,15 @@
-"""Testes do helper de sidecar JSON (Ciclo 11.1)."""
+"""Testes do helper de sidecar JSON (Ciclos 11.1, 11.2)."""
 
 from __future__ import annotations
 
+from datetime import date
+
 from scripts.segmentar import Materia
-from scripts.sidecar import SCHEMA_VERSAO, materia_para_dict_sidecar
+from scripts.sidecar import (
+    SCHEMA_VERSAO,
+    materia_para_dict_sidecar,
+    montar_sidecar,
+)
 
 
 def _materia_classificada(**overrides) -> Materia:
@@ -85,3 +91,74 @@ def test_tags_vazias_permanecem_lista():
     d = materia_para_dict_sidecar(m)
     assert d["tags"] == []
     assert isinstance(d["tags"], list)
+
+
+# ---------------------------------------------------------------------------
+# Ciclo 11.2 — montar_sidecar (cabeçalho + filtro)
+# ---------------------------------------------------------------------------
+
+
+def test_montar_sidecar_inclui_metadados_cabecalho():
+    materias = [_materia_classificada()]
+    s = montar_sidecar(
+        materias,
+        data_edicao=date(2026, 5, 15),
+        url_jornal="https://pub.r2.dev/jornal/2026-05-15.html",
+    )
+    assert s["versao"] == 1
+    assert s["data_edicao"] == "2026-05-15"
+    assert s["data_formatada"] == "15 de maio de 2026"
+    assert s["url_jornal"] == "https://pub.r2.dev/jornal/2026-05-15.html"
+    assert s["total_relevantes"] == 1
+
+
+def test_montar_sidecar_filtra_irrelevantes():
+    relevante = _materia_classificada(manchete="REL", relevante=True)
+    descartada = _materia_classificada(manchete="DESC", relevante=False)
+    s = montar_sidecar(
+        [relevante, descartada],
+        data_edicao=date(2026, 5, 15),
+        url_jornal="https://x/y.html",
+    )
+    assert s["total_relevantes"] == 1
+    assert len(s["materias"]) == 1
+    assert s["materias"][0]["manchete"] == "REL"
+
+
+def test_montar_sidecar_preserva_ordem_das_materias():
+    a = _materia_classificada(manchete="A")
+    b = _materia_classificada(manchete="B")
+    c = _materia_classificada(manchete="C")
+    s = montar_sidecar(
+        [a, b, c],
+        data_edicao=date(2026, 5, 15),
+        url_jornal="https://x/y.html",
+    )
+    assert [m["manchete"] for m in s["materias"]] == ["A", "B", "C"]
+
+
+def test_montar_sidecar_materias_sao_dicts_do_schema():
+    m = _materia_classificada()
+    s = montar_sidecar(
+        [m], data_edicao=date(2026, 5, 15), url_jornal="https://x/y.html",
+    )
+    # Cada item da lista deve passar pelo helper individual
+    assert s["materias"][0] == materia_para_dict_sidecar(m)
+
+
+def test_montar_sidecar_lista_vazia_quando_nada_relevante():
+    a = _materia_classificada(relevante=False)
+    s = montar_sidecar(
+        [a], data_edicao=date(2026, 5, 15), url_jornal="https://x/y.html",
+    )
+    assert s["total_relevantes"] == 0
+    assert s["materias"] == []
+
+
+def test_montar_sidecar_aceita_lista_vazia():
+    s = montar_sidecar(
+        [], data_edicao=date(2026, 5, 15), url_jornal="https://x/y.html",
+    )
+    assert s["total_relevantes"] == 0
+    assert s["materias"] == []
+    assert s["data_formatada"] == "15 de maio de 2026"
