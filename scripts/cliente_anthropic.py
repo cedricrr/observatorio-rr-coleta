@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import os
 
 import anthropic
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 class ClienteAnthropic:
@@ -103,6 +106,14 @@ class ClienteAnthropic:
             kwargs["temperature"] = self.temperature
 
         resposta = self._client.messages.create(**kwargs)
+
+        usage = getattr(resposta, "usage", None)
+        if usage is not None:
+            logger.info(
+                "tokens: input=%s output=%s",
+                getattr(usage, "input_tokens", "?"),
+                getattr(usage, "output_tokens", "?"),
+            )
 
         for bloco in resposta.content:
             if getattr(bloco, "type", None) == "text":

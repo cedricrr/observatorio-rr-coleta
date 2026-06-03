@@ -295,3 +295,68 @@ def test_init_permite_customizar_max_retries(monkeypatch):
     )
     ClienteAnthropic(api_key="sk-ant-test", max_retries=10)
     assert chamadas[0]["max_retries"] == 10
+
+
+# ---------------------------------------------------------------------------
+# GRUPO F — Logging de usage tokens (instrumentação pós-Sessão 11)
+# ---------------------------------------------------------------------------
+# Logar response.usage por chamada permite medir custo real (grep + awk
+# nos logs do launchd/backfill) e refinar estimativas de orçamento Anthropic.
+
+
+def _resposta_com_usage(texto: str, input_tokens: int, output_tokens: int):
+    resp = _criar_resposta_mock(texto)
+    resp.usage.input_tokens = input_tokens
+    resp.usage.output_tokens = output_tokens
+    return resp
+
+
+def test_classificar_loga_usage_input_e_output_tokens(caplog):
+    import logging as _logging
+
+    cliente = ClienteAnthropic(api_key="sk-ant-test")
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = _resposta_com_usage(
+        "ok", input_tokens=1523, output_tokens=87,
+    )
+    cliente._client = mock_client
+
+    with caplog.at_level(_logging.INFO, logger="scripts.cliente_anthropic"):
+        cliente.classificar("teste")
+
+    msgs = [r.message for r in caplog.records]
+    assert any("1523" in m and "87" in m for m in msgs)
+
+
+def test_log_usage_inclui_palavra_chave_tokens(caplog):
+    import logging as _logging
+
+    cliente = ClienteAnthropic(api_key="sk-ant-test")
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = _resposta_com_usage(
+        "ok", input_tokens=10, output_tokens=5,
+    )
+    cliente._client = mock_client
+
+    with caplog.at_level(_logging.INFO, logger="scripts.cliente_anthropic"):
+        cliente.classificar("teste")
+
+    # facilita grep + awk depois (eg.: grep tokens /tmp/log)
+    assert any("tokens" in m.lower() for m in [r.message for r in caplog.records])
+
+
+def test_log_usage_silencioso_quando_resposta_sem_usage(caplog):
+    """SDK pode (teoricamente) devolver resposta sem .usage — não quebrar."""
+    import logging as _logging
+
+    cliente = ClienteAnthropic(api_key="sk-ant-test")
+    mock_client = MagicMock()
+    resp = _criar_resposta_mock("ok")
+    del resp.usage  # remove o atributo
+    mock_client.messages.create.return_value = resp
+    cliente._client = mock_client
+
+    with caplog.at_level(_logging.INFO, logger="scripts.cliente_anthropic"):
+        result = cliente.classificar("teste")
+
+    assert result == "ok"  # propaga normalmente; log de usage é opcional
