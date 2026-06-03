@@ -219,3 +219,79 @@ def test_classificar_respeita_temperature_customizada():
 
     call_kwargs = mock_client.messages.create.call_args.kwargs
     assert call_kwargs["temperature"] == 0.7
+
+
+# ---------------------------------------------------------------------------
+# GRUPO E — Timeouts e retries (Ciclo 10.7a)
+# ---------------------------------------------------------------------------
+# Decisão 10.7: lote 2025 sofreu 8 hangs de 15-61min com sockets ESTABLISHED
+# sem progresso (TCP half-open via IPv6). Defaults da SDK (timeout=600s,
+# max_retries=2) seguram demais o pipeline. Reduzir o teto de tempo de
+# resposta e aumentar retries dá ao backfill chance de destravar sozinho.
+
+
+def test_default_timeout_constants_expostas():
+    assert ClienteAnthropic.DEFAULT_TIMEOUT_SECONDS == 120.0
+    assert ClienteAnthropic.DEFAULT_CONNECT_TIMEOUT_SECONDS == 10.0
+    assert ClienteAnthropic.DEFAULT_MAX_RETRIES == 5
+
+
+def test_init_passa_timeout_default_para_sdk(monkeypatch):
+    chamadas: list[dict] = []
+
+    def fake_anthropic(**kwargs):
+        chamadas.append(kwargs)
+        return MagicMock()
+
+    monkeypatch.setattr(
+        "scripts.cliente_anthropic.anthropic.Anthropic", fake_anthropic,
+    )
+    ClienteAnthropic(api_key="sk-ant-test")
+    timeout = chamadas[0]["timeout"]
+    assert timeout.connect == 10.0
+    assert timeout.read == 120.0
+
+
+def test_init_passa_max_retries_default_para_sdk(monkeypatch):
+    chamadas: list[dict] = []
+
+    def fake_anthropic(**kwargs):
+        chamadas.append(kwargs)
+        return MagicMock()
+
+    monkeypatch.setattr(
+        "scripts.cliente_anthropic.anthropic.Anthropic", fake_anthropic,
+    )
+    ClienteAnthropic(api_key="sk-ant-test")
+    assert chamadas[0]["max_retries"] == 5
+
+
+def test_init_permite_customizar_timeout(monkeypatch):
+    import httpx
+
+    chamadas: list[dict] = []
+
+    def fake_anthropic(**kwargs):
+        chamadas.append(kwargs)
+        return MagicMock()
+
+    monkeypatch.setattr(
+        "scripts.cliente_anthropic.anthropic.Anthropic", fake_anthropic,
+    )
+    timeout_custom = httpx.Timeout(30.0, connect=5.0)
+    ClienteAnthropic(api_key="sk-ant-test", timeout=timeout_custom)
+    assert chamadas[0]["timeout"] is timeout_custom
+
+
+def test_init_permite_customizar_max_retries(monkeypatch):
+    chamadas: list[dict] = []
+
+    def fake_anthropic(**kwargs):
+        chamadas.append(kwargs)
+        return MagicMock()
+
+    monkeypatch.setattr(
+        "scripts.cliente_anthropic.anthropic.Anthropic", fake_anthropic,
+    )
+    ClienteAnthropic(api_key="sk-ant-test", max_retries=10)
+    assert chamadas[0]["max_retries"] == 10

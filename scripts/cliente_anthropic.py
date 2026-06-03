@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 
 import anthropic
+import httpx
 
 
 class ClienteAnthropic:
@@ -24,6 +25,9 @@ class ClienteAnthropic:
     DEFAULT_MAX_TOKENS = 2000
     THINKING_BUDGET_TOKENS = 1024
     DEFAULT_TEMPERATURE = 0.0
+    DEFAULT_TIMEOUT_SECONDS = 120.0
+    DEFAULT_CONNECT_TIMEOUT_SECONDS = 10.0
+    DEFAULT_MAX_RETRIES = 5
 
     def __init__(
         self,
@@ -32,13 +36,24 @@ class ClienteAnthropic:
         extended_thinking: bool = True,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
+        timeout: httpx.Timeout | None = None,
+        max_retries: int = DEFAULT_MAX_RETRIES,
     ):
         if api_key is None and not os.environ.get("ANTHROPIC_API_KEY"):
             raise ValueError(
                 "ANTHROPIC_API_KEY não definida (nem como argumento "
                 "nem como variável de ambiente)"
             )
-        self._client = anthropic.Anthropic(api_key=api_key)
+        if timeout is None:
+            # Ciclo 10.7: teto curto de leitura destrava socket half-open
+            # antes de o backfill estagnar (defaults da SDK seguram 600s).
+            timeout = httpx.Timeout(
+                self.DEFAULT_TIMEOUT_SECONDS,
+                connect=self.DEFAULT_CONNECT_TIMEOUT_SECONDS,
+            )
+        self._client = anthropic.Anthropic(
+            api_key=api_key, timeout=timeout, max_retries=max_retries,
+        )
         self.model = model
         self.extended_thinking = extended_thinking
         self.max_tokens = max_tokens
