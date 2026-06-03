@@ -187,3 +187,51 @@ def test_upload_sem_cache_control_nao_inclui_header(mocker, tmp_path):
 
     kwargs = fake_s3.put_object.call_args.kwargs
     assert "CacheControl" not in kwargs
+
+
+# ---------------------------------------------------------------------------
+# Timeouts e retries (Ciclo 10.7b)
+# ---------------------------------------------------------------------------
+# Lote 2025 sofreu hangs também após uploads ao R2 (boto3/botocore), mesma
+# assinatura dos hangs no Anthropic SDK (Ciclo 10.7a). Defaults de botocore
+# (connect_timeout=60s, read_timeout=60s, max_attempts=3) deixam pendurar.
+# Ajuste paralelo ao 10.7a: connect curto + read médio + retries generosos.
+
+
+def test_default_timeout_constants_expostas():
+    assert R2Client.DEFAULT_CONNECT_TIMEOUT_SECONDS == 10
+    assert R2Client.DEFAULT_READ_TIMEOUT_SECONDS == 120
+    assert R2Client.DEFAULT_MAX_ATTEMPTS == 5
+
+
+def test_boto3_client_recebe_config_com_timeouts_defaults(mocker):
+    boto_client = mocker.patch("boto3.client", return_value=mocker.MagicMock())
+    R2Client(
+        account_id="a", access_key="k", secret_key="s",
+        bucket="b", public_domain="p",
+    )
+    config = boto_client.call_args.kwargs["config"]
+    assert config.connect_timeout == 10
+    assert config.read_timeout == 120
+
+
+def test_boto3_client_recebe_config_com_max_attempts(mocker):
+    boto_client = mocker.patch("boto3.client", return_value=mocker.MagicMock())
+    R2Client(
+        account_id="a", access_key="k", secret_key="s",
+        bucket="b", public_domain="p",
+    )
+    config = boto_client.call_args.kwargs["config"]
+    assert config.retries["max_attempts"] == 5
+
+
+def test_boto3_client_preserva_signature_version_s3v4(mocker):
+    # Regressão: o Config existente já fixava signature_version; o novo
+    # não pode descartá-lo (R2 exige S3v4).
+    boto_client = mocker.patch("boto3.client", return_value=mocker.MagicMock())
+    R2Client(
+        account_id="a", access_key="k", secret_key="s",
+        bucket="b", public_domain="p",
+    )
+    config = boto_client.call_args.kwargs["config"]
+    assert config.signature_version == "s3v4"

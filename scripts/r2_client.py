@@ -23,6 +23,10 @@ _VARS_NECESSARIAS = (
 class R2Client:
     """Wrapper boto3 para operações no bucket do Observatório."""
 
+    DEFAULT_CONNECT_TIMEOUT_SECONDS = 10
+    DEFAULT_READ_TIMEOUT_SECONDS = 120
+    DEFAULT_MAX_ATTEMPTS = 5
+
     def __init__(
         self,
         account_id: str,
@@ -42,7 +46,15 @@ class R2Client:
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
             region_name="auto",
-            config=Config(signature_version="s3v4"),
+            config=Config(
+                signature_version="s3v4",
+                connect_timeout=self.DEFAULT_CONNECT_TIMEOUT_SECONDS,
+                read_timeout=self.DEFAULT_READ_TIMEOUT_SECONDS,
+                retries={
+                    "max_attempts": self.DEFAULT_MAX_ATTEMPTS,
+                    "mode": "adaptive",
+                },
+            ),
         )
 
     @classmethod
