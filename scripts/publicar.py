@@ -15,7 +15,7 @@ from botocore.exceptions import ClientError
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from scripts.r2_client import R2Client
-from scripts.renderizar import _formatar_data_pt_br
+from scripts.renderizar import _formatar_data_pt_br, _formatar_valor_brl
 
 RESUMO_MAX_CHARS = 280
 
@@ -40,6 +40,7 @@ _env = Environment(
     trim_blocks=True,
     lstrip_blocks=True,
 )
+_env.globals["formatar_valor"] = _formatar_valor_brl
 
 
 def publicar_jornal(
@@ -76,7 +77,11 @@ def gerar_indice(
     diarios_dir: Path = DIARIOS_DIR_DEFAULT,
     public_domain: str | None = None,
 ) -> str:
-    """Renderiza HTML do índice listando todas as edições publicáveis."""
+    """Renderiza HTML do índice listando todas as edições publicáveis.
+
+    Em modo degradado (sem `r2` / sem sidecars), passa apenas a lista de
+    `edicoes` com `total_relevantes=0`; hero e destaques ficam vazios.
+    """
     datas = coletar_datas_publicaveis(diarios_dir)
     edicoes = []
     for d in datas:
@@ -87,15 +92,20 @@ def gerar_indice(
             url = f"{iso}.html"
         edicoes.append(
             {
-                "data": d,
+                "data_edicao": iso,
                 "data_formatada": _formatar_data_pt_br(d),
-                "url": url,
+                "url_jornal": url,
+                "total_relevantes": 0,
             }
         )
+    data_ultima = _formatar_data_pt_br(datas[0]) if datas else None
     template = _env.get_template("indice.html.j2")
     return template.render(
+        hero=None,
+        destaques=[],
         edicoes=edicoes,
         total_edicoes=len(edicoes),
+        data_ultima_formatada=data_ultima,
     )
 
 

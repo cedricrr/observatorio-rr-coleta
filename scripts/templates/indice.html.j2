@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Observatório Roraima — Arquivo</title>
+    <title>Observatório Roraima</title>
+    <meta name="description" content="Diário editorial dos órgãos públicos de Roraima — destaques das últimas edições.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,400;9..144,0,600;9..144,0,700;9..144,1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
             --cor-primaria: #1a1a1a;
             --cor-texto: #2c2c2c;
             --cor-secundaria: #666;
             --cor-fundo: #fafafa;
-            --cor-card: #ffffff;
             --cor-divisa: #e0e0e0;
-            --max-largura: 760px;
+            --cor-rule: #c8102e;
+            --max-largura: 1180px;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,111 +25,426 @@
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             background: var(--cor-fundo);
             color: var(--cor-texto);
-            line-height: 1.6;
-            padding: 2rem 1rem;
+            line-height: 1.5;
+            padding: 0 1rem;
         }
+
+        a { color: inherit; }
 
         .container {
             max-width: var(--max-largura);
             margin: 0 auto;
+            padding: 1.5rem 0 3rem;
         }
 
-        header.jornal-cabecalho {
+        /* ============ HEADER ============ */
+        header.masthead {
+            border-top: 3px solid var(--cor-rule);
+            border-bottom: 1px solid var(--cor-primaria);
+            padding: 1.25rem 0 1rem;
             text-align: center;
-            padding-bottom: 2rem;
-            margin-bottom: 3rem;
-            border-bottom: 2px solid var(--cor-primaria);
+            margin-bottom: 1.5rem;
         }
 
-        header.jornal-cabecalho h1 {
+        header.masthead h1.wordmark {
             font-family: 'Fraunces', Georgia, serif;
             font-weight: 700;
-            font-size: 2.5rem;
+            font-size: clamp(2rem, 5vw, 3.25rem);
             color: var(--cor-primaria);
-            margin-bottom: 0.5rem;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.025em;
+            line-height: 1.05;
         }
 
-        header.jornal-cabecalho .subtitulo {
+        header.masthead .subhead {
+            font-family: 'Fraunces', Georgia, serif;
+            font-style: italic;
+            font-weight: 400;
+            font-size: 1.05rem;
+            color: var(--cor-secundaria);
+            margin: 0.4rem 0 0.6rem;
+        }
+
+        header.masthead .meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--cor-secundaria);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* ============ HERO ============ */
+        section.hero {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            padding: 1.5rem 0 2rem;
+        }
+
+        section.hero .kicker {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            font-size: 0.72rem;
+            color: var(--cor-rule);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 0.5rem;
+        }
+
+        section.hero .kicker .sep {
+            color: var(--cor-secundaria);
+            margin: 0 0.5rem;
+        }
+
+        section.hero h2.manchete-hero {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 700;
+            font-size: clamp(1.75rem, 4vw, 2.85rem);
+            line-height: 1.05;
+            letter-spacing: -0.015em;
+            color: var(--cor-primaria);
+            margin-bottom: 0.75rem;
+        }
+
+        section.hero h2.manchete-hero a {
+            text-decoration: none;
+        }
+
+        section.hero h2.manchete-hero a:hover {
+            color: var(--cor-rule);
+        }
+
+        section.hero .lede {
             font-family: 'Fraunces', Georgia, serif;
             font-style: italic;
             font-weight: 400;
             font-size: 1.1rem;
-            color: var(--cor-secundaria);
-            margin-bottom: 1rem;
+            color: var(--cor-texto);
+            line-height: 1.45;
         }
 
-        header.jornal-cabecalho .meta {
+        section.hero .meta-hero {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
             color: var(--cor-secundaria);
-            letter-spacing: 0.05em;
+            margin-top: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.85rem;
+            align-items: center;
         }
 
-        ul.lista-edicoes {
-            list-style: none;
-        }
-
-        ul.lista-edicoes li {
-            background: var(--cor-card);
-            padding: 1rem 1.5rem;
-            margin-bottom: 0.5rem;
-            border-left: 3px solid var(--cor-primaria);
-            border-radius: 0 4px 4px 0;
-        }
-
-        ul.lista-edicoes li a {
-            font-family: 'Fraunces', Georgia, serif;
-            font-weight: 600;
-            font-size: 1.05rem;
+        section.hero .meta-hero .valor {
             color: var(--cor-primaria);
+            font-weight: 500;
+        }
+
+        section.hero .meta-hero .link-pdf {
+            border-bottom: 1px dotted var(--cor-secundaria);
             text-decoration: none;
         }
 
-        ul.lista-edicoes li a:hover {
-            color: var(--cor-secundaria);
+        section.hero .meta-hero .link-pdf:hover {
+            color: var(--cor-primaria);
+            border-bottom-color: var(--cor-primaria);
         }
 
+        /* divisor entre hero e grid */
+        hr.regra {
+            border: none;
+            border-top: 1px solid var(--cor-primaria);
+            margin: 0;
+        }
+
+        /* ============ GRID DE DESTAQUES ============ */
+        section.grid-destaques {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0;
+            padding: 1.5rem 0 2rem;
+        }
+
+        .card-destaque {
+            border-top: 1px solid var(--cor-divisa);
+            padding: 1.25rem 0;
+        }
+
+        .card-destaque:first-child {
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .card-destaque .kicker {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            font-size: 0.7rem;
+            color: var(--cor-rule);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 0.4rem;
+        }
+
+        .card-destaque .kicker .sep {
+            color: var(--cor-secundaria);
+            margin: 0 0.4rem;
+        }
+
+        .card-destaque h3.manchete-card {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 1.2rem;
+            line-height: 1.2;
+            color: var(--cor-primaria);
+            margin-bottom: 0.5rem;
+        }
+
+        .card-destaque h3.manchete-card a {
+            text-decoration: none;
+        }
+
+        .card-destaque h3.manchete-card a:hover {
+            color: var(--cor-rule);
+        }
+
+        .card-destaque .resumo-card {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.92rem;
+            color: var(--cor-texto);
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-destaque .meta-card {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--cor-secundaria);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+
+        .card-destaque .meta-card .valor {
+            color: var(--cor-primaria);
+            font-weight: 500;
+        }
+
+        /* ============ EDIÇÕES ANTERIORES ============ */
+        section.edicoes-anteriores {
+            border-top: 1px solid var(--cor-primaria);
+            padding-top: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        section.edicoes-anteriores h2 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--cor-primaria);
+            margin-bottom: 1rem;
+        }
+
+        ul.lista-edicoes-densa {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0;
+        }
+
+        ul.lista-edicoes-densa li {
+            border-bottom: 1px solid var(--cor-divisa);
+            padding: 0.5rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1rem;
+        }
+
+        ul.lista-edicoes-densa li a {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 500;
+            font-size: 1rem;
+            color: var(--cor-primaria);
+            text-decoration: none;
+            flex: 1;
+        }
+
+        ul.lista-edicoes-densa li a:hover {
+            color: var(--cor-rule);
+        }
+
+        ul.lista-edicoes-densa li .contagem {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--cor-secundaria);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* ============ EMPTY ============ */
         .empty-state {
             text-align: center;
-            padding: 3rem;
+            padding: 4rem 1rem;
             color: var(--cor-secundaria);
+            font-family: 'Fraunces', Georgia, serif;
             font-style: italic;
+            font-size: 1.05rem;
         }
 
+        /* ============ FOOTER ============ */
         footer.jornal-rodape {
-            margin-top: 4rem;
+            margin-top: 3rem;
             padding-top: 1.5rem;
             border-top: 1px solid var(--cor-divisa);
             text-align: center;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
+            font-size: 0.72rem;
             color: var(--cor-secundaria);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* ============ BREAKPOINTS ============ */
+        @media (min-width: 768px) {
+            section.grid-destaques {
+                grid-template-columns: repeat(2, 1fr);
+                column-gap: 2rem;
+            }
+
+            .card-destaque {
+                border-top: 1px solid var(--cor-divisa);
+                padding: 1.25rem 0;
+            }
+
+            .card-destaque:nth-child(-n+2) {
+                border-top: none;
+                padding-top: 0;
+            }
+
+            ul.lista-edicoes-densa {
+                grid-template-columns: repeat(2, 1fr);
+                column-gap: 2rem;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            section.hero {
+                grid-template-columns: 7fr 5fr;
+                gap: 2.5rem;
+            }
+
+            section.hero .lado-direito {
+                border-left: 1px solid var(--cor-divisa);
+                padding-left: 2.5rem;
+            }
+
+            section.grid-destaques {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .card-destaque:nth-child(-n+3) {
+                border-top: none;
+                padding-top: 0;
+            }
+
+            ul.lista-edicoes-densa {
+                grid-template-columns: repeat(3, 1fr);
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header class="jornal-cabecalho">
-            <h1>Observatório Roraima</h1>
-            <p class="subtitulo">Arquivo do diário editorial</p>
-            <p class="meta">{{ total_edicoes }} {{ "edição" if total_edicoes == 1 else "edições" }}</p>
+        <header class="masthead">
+            <h1 class="wordmark">Observatório Roraima</h1>
+            <p class="subhead">Diário editorial dos órgãos públicos de Roraima</p>
+            <p class="meta">
+                {%- if data_ultima_formatada %}Última edição · {{ data_ultima_formatada }}{% else %}{{ total_edicoes }} {{ "edição" if total_edicoes == 1 else "edições" }}{% endif %}
+            </p>
         </header>
 
-        {% if total_edicoes > 0 %}
-        <ul class="lista-edicoes">
-            {% for item in edicoes %}
-            <li><a href="{{ item.url }}">{{ item.data_formatada }}</a></li>
+        {% if hero %}
+        <section class="hero">
+            <div class="lado-esquerdo">
+                <p class="kicker">
+                    {{ hero.categoria }}<span class="sep">·</span>{{ hero.orgao }}
+                </p>
+                <h2 class="manchete-hero">
+                    <a href="{{ hero.pdf_url }}" target="_blank" rel="noopener">{{ hero.manchete }}</a>
+                </h2>
+                {%- if hero.resumo %}
+                <p class="lede">{{ hero.resumo }}</p>
+                {%- endif %}
+                <div class="meta-hero">
+                    {%- if hero.valor_rs %}
+                    <span class="valor">R$ {{ formatar_valor(hero.valor_rs) }}</span>
+                    {%- endif %}
+                    {%- if hero.data_edicao %}
+                    <span class="data">{{ hero.data_edicao }}</span>
+                    {%- endif %}
+                    {%- if hero.pdf_url %}
+                    <a class="link-pdf" href="{{ hero.pdf_url }}" target="_blank" rel="noopener">diário oficial (PDF)</a>
+                    {%- endif %}
+                </div>
+            </div>
+            {% if destaques and destaques[0] is defined %}
+            <div class="lado-direito"></div>
+            {% endif %}
+        </section>
+        <hr class="regra">
+        {% endif %}
+
+        {% if destaques %}
+        <section class="grid-destaques">
+            {% for d in destaques %}
+            <article class="card-destaque">
+                <p class="kicker">
+                    {{ d.categoria }}<span class="sep">·</span>{{ d.orgao }}
+                </p>
+                <h3 class="manchete-card">
+                    <a href="{{ d.pdf_url }}" target="_blank" rel="noopener">{{ d.manchete }}</a>
+                </h3>
+                {%- if d.resumo %}
+                <p class="resumo-card">{{ d.resumo }}</p>
+                {%- endif %}
+                <div class="meta-card">
+                    {%- if d.valor_rs %}
+                    <span class="valor">R$ {{ formatar_valor(d.valor_rs) }}</span>
+                    {%- endif %}
+                    {%- if d.data_edicao %}
+                    <span class="data">{{ d.data_edicao }}</span>
+                    {%- endif %}
+                </div>
+            </article>
             {% endfor %}
-        </ul>
-        {% else %}
-        <div class="empty-state">
-            Nenhuma edição publicada ainda.
-        </div>
+        </section>
+        {% endif %}
+
+        {% if not hero and not destaques and total_edicoes == 0 %}
+        <div class="empty-state">Nenhuma edição publicada ainda.</div>
+        {% endif %}
+
+        {% if edicoes %}
+        <section class="edicoes-anteriores">
+            <h2>Edições anteriores</h2>
+            <ul class="lista-edicoes-densa">
+                {% for e in edicoes %}
+                <li>
+                    <a href="{{ e.url_jornal }}">{{ e.data_formatada }}</a>
+                    {%- if e.total_relevantes is defined and e.total_relevantes > 0 %}
+                    <span class="contagem">{{ e.total_relevantes }} {{ "matéria" if e.total_relevantes == 1 else "matérias" }}</span>
+                    {%- endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
         {% endif %}
 
         <footer class="jornal-rodape">
-            <p>Gerado automaticamente pelo Observatório Roraima</p>
+            <p>Observatório Roraima · Diário editorial automatizado</p>
         </footer>
     </div>
 </body>

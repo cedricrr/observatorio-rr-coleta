@@ -497,3 +497,156 @@ def test_agregar_lista_de_datas_vazia_devolve_hero_none(mock_r2):
     assert hero is None
     assert grid == []
     assert edicoes == []
+
+
+# =============================================================
+# Template indice.html.j2 — Ciclo 11.8 (WSJ-style)
+# =============================================================
+#
+# Testes do template direto via Jinja2 Environment (sem passar por
+# gerar_indice). Ciclo 11.9 reconecta gerar_indice ao novo template.
+
+
+def _render_indice(**ctx):
+    from scripts.publicar import _env
+    base = dict(
+        hero=None,
+        destaques=[],
+        edicoes=[],
+        total_edicoes=0,
+        data_ultima_formatada=None,
+    )
+    base.update(ctx)
+    return _env.get_template("indice.html.j2").render(**base)
+
+
+def _materia_para_destaque(**overrides):
+    base = dict(
+        orgao="MPRR",
+        tipo="EXTRATO",
+        categoria="Contratação",
+        manchete="Manchete teste",
+        resumo="Resumo curto teste.",
+        valor_rs=152340.50,
+        tags=["licitação"],
+        pdf_url="https://x/y.pdf",
+        pagina=None,
+        data_edicao="2026-05-15",
+    )
+    base.update(overrides)
+    return base
+
+
+def test_template_estrutura_basica_html_valida():
+    html = _render_indice()
+    assert "<!DOCTYPE html>" in html
+    assert '<html lang="pt-BR">' in html
+    assert "<head>" in html.lower()
+    assert "</body>" in html.lower()
+
+
+def test_template_define_token_cor_rule_vermelho_wsj():
+    html = _render_indice()
+    assert "--cor-rule" in html
+    assert "#c8102e" in html
+
+
+def test_template_carrega_fontes_fraunces_inter_jetbrains():
+    html = _render_indice()
+    assert "Fraunces" in html
+    assert "Inter" in html
+    assert "JetBrains+Mono" in html or "JetBrains Mono" in html
+
+
+def test_template_header_wordmark_observatorio_roraima():
+    html = _render_indice()
+    assert "Observatório Roraima" in html
+
+
+def test_template_hero_renderiza_quando_passado():
+    hero = _materia_para_destaque(
+        manchete="MANCHETE HERO", categoria="Investigação",
+    )
+    html = _render_indice(hero=hero)
+    assert 'class="hero"' in html
+    assert "MANCHETE HERO" in html
+    assert "Investigação" in html
+
+
+def test_template_hero_kicker_combina_categoria_e_orgao():
+    hero = _materia_para_destaque(
+        categoria="Contratação", orgao="MPRR", manchete="X",
+    )
+    html = _render_indice(hero=hero)
+    # kicker exibe categoria e órgão (a ordem precisa estar visível)
+    assert "Contratação" in html
+    assert "MPRR" in html
+
+
+def test_template_sem_hero_nao_renderiza_section_hero():
+    html = _render_indice(hero=None)
+    assert 'class="hero"' not in html
+
+
+def test_template_grid_destaques_renderiza_um_card_por_item():
+    grid = [
+        _materia_para_destaque(manchete=f"DESTAQUE-{i}") for i in range(5)
+    ]
+    html = _render_indice(destaques=grid)
+    assert html.count('class="card-destaque"') == 5
+    for i in range(5):
+        assert f"DESTAQUE-{i}" in html
+
+
+def test_template_grid_destaques_vazio_nao_renderiza_secao():
+    html = _render_indice(destaques=[])
+    assert 'class="card-destaque"' not in html
+
+
+def test_template_lista_compacta_usa_url_jornal_do_novo_schema():
+    edicoes = [
+        {
+            "data_edicao": "2026-05-15",
+            "data_formatada": "15 de maio de 2026",
+            "url_jornal": "https://pub-xxx.r2.dev/jornal/2026-05-15.html",
+            "total_relevantes": 7,
+        },
+        {
+            "data_edicao": "2026-05-14",
+            "data_formatada": "14 de maio de 2026",
+            "url_jornal": "https://pub-xxx.r2.dev/jornal/2026-05-14.html",
+            "total_relevantes": 3,
+        },
+    ]
+    html = _render_indice(edicoes=edicoes, total_edicoes=2)
+    assert 'href="https://pub-xxx.r2.dev/jornal/2026-05-15.html"' in html
+    assert 'href="https://pub-xxx.r2.dev/jornal/2026-05-14.html"' in html
+    assert "15 de maio de 2026" in html
+    assert "14 de maio de 2026" in html
+
+
+def test_template_lista_compacta_mostra_total_relevantes_quando_disponivel():
+    edicoes = [
+        {
+            "data_edicao": "2026-05-15",
+            "data_formatada": "15 de maio",
+            "url_jornal": "https://x/j.html",
+            "total_relevantes": 7,
+        },
+    ]
+    html = _render_indice(edicoes=edicoes, total_edicoes=1)
+    # exibe a contagem em alguma forma (ex: "7 matérias")
+    assert "7" in html
+
+
+def test_template_empty_state_quando_nada_disponivel():
+    html = _render_indice(hero=None, destaques=[], edicoes=[], total_edicoes=0)
+    # algum indicador de vazio na home
+    assert "nenhuma" in html.lower() or "0 edi" in html.lower()
+
+
+def test_template_valor_rs_aparece_em_formato_brl_no_hero():
+    hero = _materia_para_destaque(valor_rs=987654.32, manchete="VAL")
+    html = _render_indice(hero=hero)
+    # 987.654,32 (formato brasileiro)
+    assert "987.654,32" in html
