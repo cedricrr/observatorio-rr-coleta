@@ -11,6 +11,7 @@ from scripts.publicar import (
     gerar_indice,
     publicar_indice,
     publicar_jornal,
+    publicar_sidecar,
     publicar_tudo,
 )
 
@@ -170,6 +171,79 @@ def test_publicar_indice_passa_cache_control_curto(mock_r2):
     publicar_indice("<html></html>", mock_r2)
     kwargs = mock_r2.upload.call_args.kwargs
     assert kwargs["cache_control"] == "public, max-age=300"
+
+
+# =============================================================
+# publicar_sidecar (Ciclo 11.3)
+# =============================================================
+
+
+def _upload_capturando_bytes(capturados: dict):
+    """Side effect que captura os bytes do arquivo enviado e devolve URL canônica."""
+
+    def _side_effect(caminho, chave, *args, **kwargs):
+        capturados["bytes"] = caminho.read_bytes()
+        capturados["chave"] = chave
+        capturados["kwargs"] = kwargs
+        return f"https://pub-xxx.r2.dev/{chave}"
+
+    return _side_effect
+
+
+def test_publicar_sidecar_chave_segue_padrao_json(mock_r2):
+    publicar_sidecar({"versao": 1, "materias": []}, mock_r2, date(2026, 5, 15))
+    args = mock_r2.upload.call_args.args
+    assert args[1] == "jornal/2026-05-15.json"
+
+
+def test_publicar_sidecar_content_type_application_json(mock_r2):
+    publicar_sidecar({"versao": 1, "materias": []}, mock_r2, date(2026, 5, 15))
+    kwargs = mock_r2.upload.call_args.kwargs
+    assert kwargs["content_type"] == "application/json"
+
+
+def test_publicar_sidecar_retorna_url_publica(mock_r2):
+    url = publicar_sidecar(
+        {"versao": 1, "materias": []}, mock_r2, date(2026, 5, 15),
+    )
+    assert url == "https://pub-xxx.r2.dev/jornal/2026-05-15.json"
+
+
+def test_publicar_sidecar_inclui_metadado_data_edicao(mock_r2):
+    publicar_sidecar({"versao": 1, "materias": []}, mock_r2, date(2026, 5, 15))
+    kwargs = mock_r2.upload.call_args.kwargs
+    assert kwargs["metadados"] == {"data-edicao": "2026-05-15"}
+
+
+def test_publicar_sidecar_sem_cache_control(mock_r2):
+    # Sidecar é imutável (idem HTML do jornal); CDN cache padrão é OK.
+    publicar_sidecar({"versao": 1, "materias": []}, mock_r2, date(2026, 5, 15))
+    kwargs = mock_r2.upload.call_args.kwargs
+    assert "cache_control" not in kwargs or kwargs["cache_control"] is None
+
+
+def test_publicar_sidecar_serializa_json_legivel_preservando_acentos(mock_r2):
+    import json as _json
+
+    capturados: dict = {}
+    mock_r2.upload.side_effect = _upload_capturando_bytes(capturados)
+    sidecar = {
+        "versao": 1,
+        "manchete": "Contratação para licitação eletrônica em São Paulo",
+        "tags": ["áudio", "energia"],
+    }
+
+    publicar_sidecar(sidecar, mock_r2, date(2026, 5, 15))
+
+    conteudo = capturados["bytes"].decode("utf-8")
+    # ensure_ascii=False mantém acentos como UTF-8 (não \uXXXX)
+    assert "Contratação" in conteudo
+    assert "áudio" in conteudo
+    assert "\\u" not in conteudo
+    # indent=2 deixa legível (quebras de linha presentes)
+    assert "\n" in conteudo
+    # Round-trip funciona
+    assert _json.loads(conteudo) == sidecar
 
 
 # =============================================================

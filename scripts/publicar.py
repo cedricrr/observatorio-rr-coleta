@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import re
 import sys
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 PREFIXO_R2 = "jornal/"
 CHAVE_INDICE = "jornal/index.html"
 CONTENT_TYPE_HTML = "text/html; charset=utf-8"
+CONTENT_TYPE_JSON = "application/json"
 # Índice muda a cada publicação; max-age curto evita servir índice stale do CDN
 # (os HTMLs de edição são imutáveis e sobem sem Cache-Control).
 CACHE_CONTROL_INDICE = "public, max-age=300"
@@ -92,6 +94,34 @@ def gerar_indice(
         edicoes=edicoes,
         total_edicoes=len(edicoes),
     )
+
+
+def publicar_sidecar(
+    sidecar: dict, r2: R2Client, data_edicao: date,
+) -> str:
+    """Sobe o sidecar JSON para jornal/AAAA-MM-DD.json no R2.
+
+    JSON é serializado com `indent=2` e `ensure_ascii=False` para
+    preservar acentos como UTF-8 (legível em curl/jq). Sidecar é
+    imutável como o HTML do jornal — sem Cache-Control.
+    """
+    chave = f"{PREFIXO_R2}{data_edicao.isoformat()}.json"
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False, encoding="utf-8",
+    ) as tmp:
+        json.dump(sidecar, tmp, ensure_ascii=False, indent=2)
+        tmp_path = Path(tmp.name)
+    try:
+        url = r2.upload(
+            tmp_path,
+            chave,
+            metadados={"data-edicao": data_edicao.isoformat()},
+            content_type=CONTENT_TYPE_JSON,
+        )
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    logger.info(f"Sidecar publicado: {url}")
+    return url
 
 
 def publicar_indice(html_indice: str, r2: R2Client) -> str:
