@@ -8,6 +8,7 @@ consolidado de todas as fontes do dia.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from datetime import date
@@ -24,6 +25,7 @@ from scripts.pdf_para_markdown import pdf_para_markdown
 from scripts.r2_client import R2Client
 from scripts.renderizar import renderizar_jornal
 from scripts.segmentar import Materia, segmentar_materias
+from scripts.sidecar import montar_sidecar
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +153,16 @@ def gerar_jornal_diario(
     output_path = output_dir / f"{data_edicao.isoformat()}.html"
     output_path.write_text(html, encoding="utf-8")
     logger.info(f"Jornal salvo em {output_path}")
+
+    # Sidecar JSON (Ciclo 11.4): persiste matérias relevantes em disco para que
+    # o passo seguinte (scripts.publicar) possa subi-lo ao R2 sem reprocessar.
+    url_jornal = r2.url_publica(f"jornal/{data_edicao.isoformat()}.html")
+    sidecar = montar_sidecar(todas_materias, data_edicao, url_jornal)
+    sidecar_path = output_path.with_suffix(".json")
+    sidecar_path.write_text(
+        json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8",
+    )
+    logger.info(f"Sidecar salvo em {sidecar_path}")
 
     return output_path
 

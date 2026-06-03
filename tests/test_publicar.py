@@ -254,7 +254,7 @@ def test_publicar_sidecar_serializa_json_legivel_preservando_acentos(mock_r2):
 def test_publicar_tudo_chama_publicar_jornal_depois_publicar_indice(
     mock_r2, tmp_path, monkeypatch,
 ):
-    """Ordem: primeiro o jornal, depois o índice (que reflete o jornal recém-publicado)."""
+    """Ordem: jornal HTML → (sidecar JSON se existir) → índice."""
     _criar_jsons(tmp_path / "diarios", {"mprr": ["2026-05-15-961"]})
     html_path = _criar_html_falso(tmp_path)
 
@@ -267,3 +267,44 @@ def test_publicar_tudo_chama_publicar_jornal_depois_publicar_indice(
 
     chaves_uploaded = [c.args[1] for c in mock_r2.upload.call_args_list]
     assert chaves_uploaded == ["jornal/2026-05-15.html", "jornal/index.html"]
+
+
+def test_publicar_tudo_publica_sidecar_quando_arquivo_existe(
+    mock_r2, tmp_path,
+):
+    """Ciclo 11.4: se sidecar JSON existe ao lado do HTML, sobe entre HTML e índice."""
+    _criar_jsons(tmp_path / "diarios", {"mprr": ["2026-05-15-961"]})
+    html_path = _criar_html_falso(tmp_path)
+    sidecar_path = html_path.with_suffix(".json")
+    sidecar_path.write_text('{"versao": 1, "materias": []}')
+
+    publicar_tudo(
+        html_path,
+        mock_r2,
+        date(2026, 5, 15),
+        diarios_dir=tmp_path / "diarios",
+    )
+
+    chaves_uploaded = [c.args[1] for c in mock_r2.upload.call_args_list]
+    assert chaves_uploaded == [
+        "jornal/2026-05-15.html",
+        "jornal/2026-05-15.json",
+        "jornal/index.html",
+    ]
+
+
+def test_publicar_tudo_ignora_sidecar_ausente_para_compat(mock_r2, tmp_path):
+    """Sem sidecar (pipeline antigo), publicar_tudo segue sem reclamar."""
+    _criar_jsons(tmp_path / "diarios", {"mprr": ["2026-05-15-961"]})
+    html_path = _criar_html_falso(tmp_path)
+    # NÃO criamos sidecar_path
+
+    publicar_tudo(
+        html_path,
+        mock_r2,
+        date(2026, 5, 15),
+        diarios_dir=tmp_path / "diarios",
+    )
+
+    chaves_uploaded = [c.args[1] for c in mock_r2.upload.call_args_list]
+    assert "jornal/2026-05-15.json" not in chaves_uploaded

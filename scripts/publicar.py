@@ -150,8 +150,16 @@ def publicar_tudo(
     data_edicao: date,
     diarios_dir: Path = DIARIOS_DIR_DEFAULT,
 ) -> tuple[str, str]:
-    """Publica o jornal do dia e regenera o índice. Retorna (url_jornal, url_indice)."""
+    """Publica o jornal do dia, sidecar JSON (se existir) e regenera o índice.
+
+    Ordem: jornal HTML → sidecar JSON → índice. O sidecar é opcional para
+    backward compat com edições geradas antes do Ciclo 11.4.
+    """
     url_jornal = publicar_jornal(html_path, r2, data_edicao)
+    sidecar_path = html_path.with_suffix(".json")
+    if sidecar_path.exists():
+        sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+        publicar_sidecar(sidecar, r2, data_edicao)
     public_domain = r2.public_domain if hasattr(r2, "public_domain") else None
     html_indice = gerar_indice(diarios_dir, public_domain=public_domain)
     url_indice = publicar_indice(html_indice, r2)

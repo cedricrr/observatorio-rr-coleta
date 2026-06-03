@@ -58,6 +58,12 @@ def mock_pipeline(monkeypatch, tmp_path):
 
     r2_instance = MagicMock()
     r2_instance.existe.return_value = True
+    # Default: URL canônica derivada da chave. Permite que o sidecar JSON
+    # (Ciclo 11.4) seja JSON-serializável mesmo quando o teste não
+    # configura url_publica explicitamente.
+    r2_instance.url_publica.side_effect = (
+        lambda chave: f"https://pub-xxx.r2.dev/{chave}"
+    )
     mocks["r2_client_class"].from_env.return_value = r2_instance
     mocks["r2_instance"] = r2_instance
 
@@ -258,8 +264,8 @@ def test_pdf_url_usa_url_publica_do_r2(mock_pipeline, tmp_path):
     O leitor do jornal precisa do link real para o R2 para verificar
     a matéria contra o documento oficial.
     """
-    mock_pipeline["r2_instance"].url_publica.return_value = (
-        "https://files.pub.dev/observatorio-real/mprr/x.pdf"
+    mock_pipeline["r2_instance"].url_publica.side_effect = (
+        lambda chave: f"https://files.pub.dev/observatorio-real/{chave}"
     )
     gerar_jornal_diario(
         date(2026, 4, 30),
@@ -299,14 +305,13 @@ def test_processar_chave_nao_recoleta(mock_pipeline):
 
 
 def test_processar_chave_usa_url_publica_da_chave(mock_pipeline):
-    mock_pipeline["r2_instance"].url_publica.return_value = "https://pub/x.pdf"
-
     jd.processar_chave(
         "mprr/x.pdf", "MPRR", mock_pipeline["r2_instance"], MagicMock(),
     )
 
+    # Fixture default usa pub-xxx.r2.dev → confirma que a chave passou.
     seg_calls = mock_pipeline["segmentar_materias"].call_args_list
-    assert seg_calls[0].args[2] == "https://pub/x.pdf"
+    assert seg_calls[0].args[2] == "https://pub-xxx.r2.dev/mprr/x.pdf"
 
 
 def test_processar_chave_pipeline_falha_retorna_vazio(mock_pipeline):
@@ -335,3 +340,71 @@ def test_processar_chave_classificacao_de_uma_materia_falha_continua(mock_pipeli
     manchetes = [m.manchete for m in materias]
     assert "OK" in manchetes
     assert "FALHA" not in manchetes
+
+
+# =============================================================
+# GRUPO E — Sidecar JSON gravado em disco (Ciclo 11.4)
+# =============================================================
+
+
+def test_sidecar_json_gerado_junto_com_html(mock_pipeline, tmp_path):
+    mock_pipeline["filtrar_materias"].return_value = [
+        _materia_classificada(orgao="MPRR", manchete="Teste sidecar"),
+    ]
+    html_path = gerar_jornal_diario(date(2026, 4, 30), output_dir=tmp_path)
+    sidecar_path = html_path.with_suffix(".json")
+    assert sidecar_path.exists()
+
+
+def test_sidecar_contem_versao_e_data_edicao(mock_pipeline, tmp_path):
+    import json as _json
+
+    mock_pipeline["filtrar_materias"].return_value = [
+        _materia_classificada(orgao="MPRR"),
+    ]
+    html_path = gerar_jornal_diario(date(2026, 4, 30), output_dir=tmp_path)
+    sidecar = _json.loads(html_path.with_suffix(".json").read_text())
+    assert sidecar["versao"] == 1
+    assert sidecar["data_edicao"] == "2026-04-30"
+    assert sidecar["data_formatada"] == "30 de abril de 2026"
+
+
+def test_sidecar_url_jornal_aponta_para_r2_publico(mock_pipeline, tmp_path):
+    import json as _json
+
+    mock_pipeline["filtrar_materias"].return_value = [
+        _materia_classificada(orgao="MPRR"),
+    ]
+    html_path = gerar_jornal_diario(date(2026, 4, 30), output_dir=tmp_path)
+    sidecar = _json.loads(html_path.with_suffix(".json").read_text())
+    assert sidecar["url_jornal"] == (
+        "https://pub-xxx.r2.dev/jornal/2026-04-30.html"
+    )
+
+
+def test_sidecar_inclui_apenas_materias_relevantes(mock_pipeline, tmp_path):
+    import json as _json
+
+    m_rel = _materia_classificada(orgao="MPRR", manchete="REL", relevante=True)
+    m_desc = _materia_classificada(
+        orgao="MPRR", manchete="DESCARTAR", relevante=False,
+    )
+    mock_pipeline["filtrar_materias"].return_value = [m_rel, m_desc]
+    html_path = gerar_jornal_diario(
+        date(2026, 4, 30), fontes=["MPRR"], output_dir=tmp_path,
+    )
+    sidecar = _json.loads(html_path.with_suffix(".json").read_text())
+    assert sidecar["total_relevantes"] == 1
+    assert [m["manchete"] for m in sidecar["materias"]] == ["REL"]
+
+
+def test_sidecar_vazio_quando_pipeline_nao_produziu_materias(
+    mock_pipeline, tmp_path,
+):
+    import json as _json
+
+    mock_pipeline["filtrar_materias"].return_value = []
+    html_path = gerar_jornal_diario(date(2026, 4, 30), output_dir=tmp_path)
+    sidecar = _json.loads(html_path.with_suffix(".json").read_text())
+    assert sidecar["total_relevantes"] == 0
+    assert sidecar["materias"] == []
