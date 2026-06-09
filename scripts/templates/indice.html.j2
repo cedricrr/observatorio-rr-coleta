@@ -230,58 +230,32 @@
             font-weight: 500;
         }
 
-        /* ============ EDIÇÕES ANTERIORES ============ */
-        section.edicoes-anteriores {
+        /* ============ LINKS PARA DIÁRIOS ============ */
+        nav.nav-diarios {
             border-top: 1px solid var(--cor-primaria);
             padding-top: 1.5rem;
             margin-top: 1rem;
-        }
-
-        section.edicoes-anteriores h2 {
-            font-family: 'Fraunces', Georgia, serif;
-            font-weight: 600;
-            font-size: 0.95rem;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: var(--cor-primaria);
-            margin-bottom: 1rem;
-        }
-
-        ul.lista-edicoes-densa {
-            list-style: none;
             display: grid;
             grid-template-columns: 1fr;
-            gap: 0;
+            gap: 0.75rem;
         }
 
-        ul.lista-edicoes-densa li {
-            border-bottom: 1px solid var(--cor-divisa);
-            padding: 0.5rem 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            gap: 1rem;
-        }
-
-        ul.lista-edicoes-densa li a {
+        nav.nav-diarios .botao-diarios {
+            display: block;
             font-family: 'Fraunces', Georgia, serif;
-            font-weight: 500;
-            font-size: 1rem;
+            font-weight: 600;
+            font-size: 1.05rem;
             color: var(--cor-primaria);
             text-decoration: none;
-            flex: 1;
+            border: 1px solid var(--cor-primaria);
+            border-left: 4px solid var(--cor-rule);
+            padding: 0.9rem 1.1rem;
         }
 
-        ul.lista-edicoes-densa li a:hover {
-            color: var(--cor-rule);
-        }
-
-        ul.lista-edicoes-densa li .contagem {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.72rem;
-            color: var(--cor-secundaria);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
+        nav.nav-diarios .botao-diarios:hover {
+            background: var(--cor-primaria);
+            color: var(--cor-fundo);
+            border-left-color: var(--cor-rule);
         }
 
         /* ============ EMPTY ============ */
@@ -324,9 +298,8 @@
                 padding-top: 0;
             }
 
-            ul.lista-edicoes-densa {
+            nav.nav-diarios {
                 grid-template-columns: repeat(2, 1fr);
-                column-gap: 2rem;
             }
         }
 
@@ -348,10 +321,6 @@
             .card-destaque:nth-child(-n+3) {
                 border-top: none;
                 padding-top: 0;
-            }
-
-            ul.lista-edicoes-densa {
-                grid-template-columns: repeat(3, 1fr);
             }
         }
     </style>
@@ -427,21 +396,10 @@
         <div class="empty-state">Nenhuma edição publicada ainda.</div>
         {% endif %}
 
-        {% if edicoes %}
-        <section class="edicoes-anteriores">
-            <h2>Edições anteriores</h2>
-            <ul class="lista-edicoes-densa">
-                {% for e in edicoes %}
-                <li>
-                    <a href="{{ e.url_jornal }}">{{ e.data_formatada }}</a>
-                    {%- if e.total_relevantes is defined and e.total_relevantes > 0 %}
-                    <span class="contagem">{{ e.total_relevantes }} {{ "matéria" if e.total_relevantes == 1 else "matérias" }}</span>
-                    {%- endif %}
-                </li>
-                {% endfor %}
-            </ul>
-        </section>
-        {% endif %}
+        <nav class="nav-diarios">
+            <a class="botao-diarios" href="{{ url_diarios_mprr }}">Diários do MPRR</a>
+            <a class="botao-diarios" href="{{ url_diarios_tjrr }}">Diários do TJRR</a>
+        </nav>
 
         <footer class="jornal-rodape">
             <p>Observatório Roraima · Diário editorial automatizado</p>

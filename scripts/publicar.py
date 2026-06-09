@@ -31,6 +31,24 @@ CACHE_CONTROL_INDICE = "public, max-age=300"
 DIARIOS_DIR_DEFAULT = Path("data/diarios")
 OUTPUT_DIR_DEFAULT = Path("/tmp/observatorio-roraima")
 
+# Páginas de download de diários por órgão (chave R2 + metadados de exibição).
+CHAVE_DIARIOS = {
+    "mprr": "jornal/diarios-mprr.html",
+    "tjrr": "jornal/diarios-tjrr.html",
+}
+_META_FONTE = {
+    "mprr": {
+        "nome": "MPRR",
+        "subtitulo": "Ministério Público de Roraima",
+        "mostrar_numero": True,
+    },
+    "tjrr": {
+        "nome": "TJRR",
+        "subtitulo": "Tribunal de Justiça de Roraima",
+        "mostrar_numero": False,
+    },
+}
+
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
 _RE_DATA_ISO = re.compile(r"^(\d{4}-\d{2}-\d{2})")
 
@@ -73,59 +91,125 @@ def coletar_datas_publicaveis(diarios_dir: Path) -> list[date]:
     return sorted(datas, reverse=True)
 
 
+def enumerar_diarios_fonte(fonte: str, diarios_dir: Path) -> list[dict]:
+    """Lê todos os JSON de data/diarios/<fonte>/ e devolve edições ordenadas desc.
+
+    Cada item: {data_edicao: date, data_formatada: str, numero: int|None,
+    url_r2: str|None, tamanho: int|None}. Entradas sem url_r2 são descartadas
+    (sem link de download não há linha útil). Dir inexistente → [].
+    """
+    fonte_dir = diarios_dir / fonte
+    if not fonte_dir.exists():
+        return []
+    edicoes: list[dict] = []
+    for json_path in fonte_dir.glob("*.json"):
+        meta = json.loads(json_path.read_text(encoding="utf-8"))
+        url_r2 = meta.get("url_r2")
+        if not url_r2:
+            continue
+        d = date.fromisoformat(meta["data_edicao"])
+        edicoes.append({
+            "data_edicao": d,
+            "data_formatada": _formatar_data_pt_br(d),
+            "numero": meta.get("numero"),
+            "url_r2": url_r2,
+            "tamanho": meta.get("tamanho"),
+        })
+    edicoes.sort(key=lambda e: e["data_edicao"], reverse=True)
+    return edicoes
+
+
+def _formatar_tamanho(tamanho: int | None) -> str:
+    """Bytes → string legível pt-BR ("1,4 MB" / "781 KB"). None/0 → ""."""
+    if not tamanho:
+        return ""
+    mb = tamanho / 1048576
+    if mb >= 1:
+        return f"{mb:.1f}".replace(".", ",") + " MB"
+    return f"{round(tamanho / 1024)} KB"
+
+
+_env.globals["formatar_tamanho"] = _formatar_tamanho
+
+
+def gerar_pagina_diarios(
+    fonte: str,
+    diarios_dir: Path = DIARIOS_DIR_DEFAULT,
+    public_domain: str | None = None,
+) -> str:
+    """Renderiza a página standalone de diários de uma fonte (mprr/tjrr).
+
+    Lê os JSON locais (não usa R2) e monta seções por ano com links de
+    download (url_r2). `url_indice` aponta de volta para a home.
+    """
+    edicoes = enumerar_diarios_fonte(fonte, diarios_dir)
+    anos = agrupar_diarios_por_ano(edicoes)
+    meta = _META_FONTE[fonte]
+    url_indice = (
+        f"https://{public_domain}/{CHAVE_INDICE}" if public_domain else "index.html"
+    )
+    template = _env.get_template("diarios.html.j2")
+    return template.render(
+        orgao_nome=meta["nome"],
+        orgao_subtitulo=meta["subtitulo"],
+        mostrar_numero=meta["mostrar_numero"],
+        anos=anos,
+        total=len(edicoes),
+        url_indice=url_indice,
+    )
+
+
+def agrupar_diarios_por_ano(edicoes: list[dict]) -> list[dict]:
+    """Agrupa edições (já em ordem desc) em seções por ano, anos desc.
+
+    Retorna [{"ano": int, "edicoes": [...]}, ...]. A ordem interna de cada
+    ano preserva a ordem recebida (desc). [] → [].
+    """
+    por_ano: dict[int, list[dict]] = {}
+    for e in edicoes:
+        por_ano.setdefault(e["data_edicao"].year, []).append(e)
+    return [
+        {"ano": ano, "edicoes": por_ano[ano]}
+        for ano in sorted(por_ano, reverse=True)
+    ]
+
+
+def _url_pagina_diarios(fonte: str, public_domain: str | None) -> str:
+    """URL da página de diários de uma fonte (absoluta se houver domínio)."""
+    chave = CHAVE_DIARIOS[fonte]
+    if public_domain:
+        return f"https://{public_domain}/{chave}"
+    return f"diarios-{fonte}.html"
+
+
 def gerar_indice(
     diarios_dir: Path = DIARIOS_DIR_DEFAULT,
     public_domain: str | None = None,
     r2: R2Client | None = None,
 ) -> str:
-    """Renderiza HTML do índice listando todas as edições publicáveis.
+    """Renderiza HTML do índice: hero + grid de destaques + links de diários.
 
     Quando `r2` é fornecido, baixa os sidecars JSON dos jornais mais
     recentes e renderiza hero + grid de destaques (Ciclos 11.7/11.8).
-    Sem `r2`, modo degradado: só a lista compacta de edições, hero=None.
+    Sem `r2`, modo degradado: sem hero/grid. O arquivo de edições foi
+    substituído por dois links para as páginas de diários por órgão.
     """
     datas = coletar_datas_publicaveis(diarios_dir)
     hero = None
     destaques: list[dict] = []
-    sidecars_por_iso: dict[str, dict] = {}
 
     if r2 is not None and datas:
-        hero, destaques, edicoes_meta = agregar_destaques_recentes(
-            datas, r2,
-        )
-        for em in edicoes_meta:
-            sidecars_por_iso[em["data_edicao"]] = em
+        hero, destaques, _ = agregar_destaques_recentes(datas, r2)
 
-    edicoes = []
-    for d in datas:
-        iso = d.isoformat()
-        if public_domain:
-            url = f"https://{public_domain}/{PREFIXO_R2}{iso}.html"
-        else:
-            url = f"{iso}.html"
-        meta_real = sidecars_por_iso.get(iso)
-        edicoes.append(
-            {
-                "data_edicao": iso,
-                "data_formatada": (
-                    meta_real["data_formatada"]
-                    if meta_real
-                    else _formatar_data_pt_br(d)
-                ),
-                "url_jornal": meta_real["url_jornal"] if meta_real else url,
-                "total_relevantes": (
-                    meta_real["total_relevantes"] if meta_real else 0
-                ),
-            }
-        )
     data_ultima = _formatar_data_pt_br(datas[0]) if datas else None
     template = _env.get_template("indice.html.j2")
     return template.render(
         hero=hero,
         destaques=destaques,
-        edicoes=edicoes,
-        total_edicoes=len(edicoes),
+        total_edicoes=len(datas),
         data_ultima_formatada=data_ultima,
+        url_diarios_mprr=_url_pagina_diarios("mprr", public_domain),
+        url_diarios_tjrr=_url_pagina_diarios("tjrr", public_domain),
     )
 
 
@@ -255,16 +339,56 @@ def publicar_indice(html_indice: str, r2: R2Client) -> str:
     return url
 
 
+def publicar_pagina_diarios(fonte: str, html: str, r2: R2Client) -> str:
+    """Sobe a página de diários de uma fonte para jornal/diarios-<fonte>.html.
+
+    Mesma política do índice (max-age curto): a página muda sempre que uma
+    nova edição é coletada.
+    """
+    chave = CHAVE_DIARIOS[fonte]
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".html", delete=False, encoding="utf-8",
+    ) as tmp:
+        tmp.write(html)
+        tmp_path = Path(tmp.name)
+    try:
+        url = r2.upload(
+            tmp_path,
+            chave,
+            content_type=CONTENT_TYPE_HTML,
+            cache_control=CACHE_CONTROL_INDICE,
+        )
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    logger.info(f"Página de diários ({fonte}) publicada: {url}")
+    return url
+
+
+def publicar_paginas_diarios(
+    r2: R2Client,
+    diarios_dir: Path = DIARIOS_DIR_DEFAULT,
+    public_domain: str | None = None,
+) -> list[str]:
+    """Gera e publica as páginas de diários de cada fonte. Retorna URLs."""
+    urls: list[str] = []
+    for fonte in CHAVE_DIARIOS:
+        html = gerar_pagina_diarios(fonte, diarios_dir, public_domain=public_domain)
+        urls.append(publicar_pagina_diarios(fonte, html, r2))
+    return urls
+
+
 def publicar_tudo(
     html_path: Path,
     r2: R2Client,
     data_edicao: date,
     diarios_dir: Path = DIARIOS_DIR_DEFAULT,
 ) -> tuple[str, str]:
-    """Publica o jornal do dia, sidecar JSON (se existir) e regenera o índice.
+    """Publica o jornal do dia, sidecar JSON (se existir), páginas de diários e índice.
 
-    Ordem: jornal HTML → sidecar JSON → índice. O sidecar é opcional para
-    backward compat com edições geradas antes do Ciclo 11.4.
+    Ordem: jornal HTML → sidecar JSON → páginas de diários (mprr, tjrr) →
+    índice. O sidecar é opcional para backward compat com edições geradas
+    antes do Ciclo 11.4. As páginas de diários sobem antes do índice para
+    os links da home apontarem para páginas frescas no mesmo run.
     """
     url_jornal = publicar_jornal(html_path, r2, data_edicao)
     sidecar_path = html_path.with_suffix(".json")
@@ -272,6 +396,7 @@ def publicar_tudo(
         sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
         publicar_sidecar(sidecar, r2, data_edicao)
     public_domain = r2.public_domain if hasattr(r2, "public_domain") else None
+    publicar_paginas_diarios(r2, diarios_dir, public_domain)
     html_indice = gerar_indice(
         diarios_dir, public_domain=public_domain, r2=r2,
     )
@@ -314,6 +439,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.apenas_indice:
+            publicar_paginas_diarios(r2, public_domain=r2.public_domain)
             html = gerar_indice(public_domain=r2.public_domain, r2=r2)
             url = publicar_indice(html, r2)
             print(f"Índice publicado: {url}")

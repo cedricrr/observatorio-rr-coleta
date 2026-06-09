@@ -8,10 +8,14 @@ import pytest
 
 from scripts.publicar import (
     agregar_destaques_recentes,
+    agrupar_diarios_por_ano,
     baixar_sidecar,
     coletar_datas_publicaveis,
+    enumerar_diarios_fonte,
     gerar_indice,
+    gerar_pagina_diarios,
     publicar_indice,
+    publicar_pagina_diarios,
     publicar_jornal,
     publicar_sidecar,
     publicar_tudo,
@@ -59,6 +63,223 @@ def _criar_html_falso(tmp_path: Path, nome: str = "2026-05-15.html") -> Path:
     arquivo = tmp_path / nome
     arquivo.write_text("<html><body>fake</body></html>")
     return arquivo
+
+
+def _reg(
+    data_edicao: str,
+    numero=None,
+    fonte: str = "mprr",
+    url_r2: str | None = "https://pub-xxx.r2.dev/x.pdf",
+    tamanho: int = 1000,
+) -> dict:
+    """Monta um registro de diário no schema real de data/diarios/."""
+    return {
+        "orgao": fonte,
+        "data_edicao": data_edicao,
+        "numero": numero,
+        "sha256": "abc",
+        "tamanho": tamanho,
+        "url_original": "https://origem/x.pdf",
+        "url_r2": url_r2,
+        "url_wayback": None,
+        "ja_existia": False,
+    }
+
+
+def _criar_jsons_completos(tmp_path: Path, registros: dict[str, list[dict]]) -> Path:
+    """Cria data/diarios/<fonte>/<data>[-<numero>].json com conteúdo real.
+
+    registros: {fonte: [dict no schema de data/diarios, ...]}
+    """
+    import json as _json
+
+    for fonte, items in registros.items():
+        (tmp_path / fonte).mkdir(parents=True, exist_ok=True)
+        for it in items:
+            numero = it.get("numero")
+            nome = f"{it['data_edicao']}-{numero}" if numero else it["data_edicao"]
+            (tmp_path / fonte / f"{nome}.json").write_text(
+                _json.dumps(it, ensure_ascii=False), encoding="utf-8",
+            )
+    return tmp_path
+
+
+# =============================================================
+# enumerar_diarios_fonte
+# =============================================================
+
+
+def test_enumerar_diarios_fonte_ordena_descendente(tmp_path):
+    _criar_jsons_completos(
+        tmp_path,
+        {"mprr": [_reg("2026-05-11", 957), _reg("2026-05-15", 961), _reg("2026-05-13", 959)]},
+    )
+    eds = enumerar_diarios_fonte("mprr", tmp_path)
+    assert [e["data_edicao"] for e in eds] == [
+        date(2026, 5, 15), date(2026, 5, 13), date(2026, 5, 11),
+    ]
+
+
+def test_enumerar_diarios_fonte_inclui_campos_essenciais(tmp_path):
+    _criar_jsons_completos(
+        tmp_path,
+        {"mprr": [_reg(
+            "2026-05-15", 961,
+            url_r2="https://pub-xxx.r2.dev/mprr/2026/05/2026-05-15-961.pdf",
+            tamanho=1495758,
+        )]},
+    )
+    e = enumerar_diarios_fonte("mprr", tmp_path)[0]
+    assert e["url_r2"] == "https://pub-xxx.r2.dev/mprr/2026/05/2026-05-15-961.pdf"
+    assert e["numero"] == 961
+    assert e["data_formatada"] == "15 de maio de 2026"
+    assert e["tamanho"] == 1495758
+
+
+def test_enumerar_diarios_fonte_mantem_numero_none(tmp_path):
+    _criar_jsons_completos(tmp_path, {"mprr": [_reg("2022-04-19", None)]})
+    e = enumerar_diarios_fonte("mprr", tmp_path)[0]
+    assert e["numero"] is None
+
+
+def test_enumerar_diarios_fonte_pula_entrada_sem_url_r2(tmp_path):
+    _criar_jsons_completos(
+        tmp_path,
+        {"tjrr": [
+            _reg("2026-05-15", fonte="tjrr", url_r2="https://pub-xxx.r2.dev/ok.pdf"),
+            _reg("2026-05-14", fonte="tjrr", url_r2=None),
+        ]},
+    )
+    eds = enumerar_diarios_fonte("tjrr", tmp_path)
+    assert len(eds) == 1
+    assert eds[0]["data_edicao"] == date(2026, 5, 15)
+
+
+def test_enumerar_diarios_fonte_dir_inexistente_retorna_vazio(tmp_path):
+    assert enumerar_diarios_fonte("mprr", tmp_path) == []
+
+
+# =============================================================
+# agrupar_diarios_por_ano
+# =============================================================
+
+
+def _ed(data_edicao: date) -> dict:
+    return {"data_edicao": data_edicao, "data_formatada": "x", "numero": None,
+            "url_r2": "https://x", "tamanho": 1}
+
+
+def test_agrupar_diarios_por_ano_agrupa_anos_desc(tmp_path):
+    eds = [
+        _ed(date(2026, 5, 15)),
+        _ed(date(2026, 1, 2)),
+        _ed(date(2025, 12, 30)),
+        _ed(date(2024, 6, 1)),
+    ]
+    anos = agrupar_diarios_por_ano(eds)
+    assert [a["ano"] for a in anos] == [2026, 2025, 2024]
+
+
+def test_agrupar_diarios_por_ano_preserva_ordem_interna_desc(tmp_path):
+    eds = [_ed(date(2026, 5, 15)), _ed(date(2026, 1, 2))]
+    anos = agrupar_diarios_por_ano(eds)
+    assert [e["data_edicao"] for e in anos[0]["edicoes"]] == [
+        date(2026, 5, 15), date(2026, 1, 2),
+    ]
+
+
+def test_agrupar_diarios_por_ano_vazio_retorna_vazio():
+    assert agrupar_diarios_por_ano([]) == []
+
+
+# =============================================================
+# _formatar_tamanho
+# =============================================================
+
+
+def test_formatar_tamanho_megabytes_com_virgula():
+    from scripts.publicar import _formatar_tamanho
+    assert _formatar_tamanho(1495758) == "1,4 MB"
+
+
+def test_formatar_tamanho_kilobytes_inteiro():
+    from scripts.publicar import _formatar_tamanho
+    assert _formatar_tamanho(800000) == "781 KB"
+
+
+def test_formatar_tamanho_none_retorna_vazio():
+    from scripts.publicar import _formatar_tamanho
+    assert _formatar_tamanho(None) == ""
+
+
+# =============================================================
+# gerar_pagina_diarios + template diarios.html.j2
+# =============================================================
+
+
+def test_gerar_pagina_diarios_mprr_tem_numero_e_ancoras_por_ano(tmp_path):
+    _criar_jsons_completos(
+        tmp_path,
+        {"mprr": [
+            _reg("2026-06-08", 975,
+                 url_r2="https://pub-xxx.r2.dev/mprr/2026/06/2026-06-08-975.pdf"),
+            _reg("2025-03-10", 800,
+                 url_r2="https://pub-xxx.r2.dev/mprr/2025/03/2025-03-10-800.pdf"),
+        ]},
+    )
+    html = gerar_pagina_diarios("mprr", tmp_path, public_domain="pub-xxx.r2.dev")
+    assert "Edição nº 975" in html
+    assert 'id="ano-2026"' in html
+    assert 'id="ano-2025"' in html
+    assert 'href="#ano-2026"' in html
+    assert 'href="https://pub-xxx.r2.dev/mprr/2026/06/2026-06-08-975.pdf"' in html
+    assert "MPRR" in html
+
+
+def test_gerar_pagina_diarios_tjrr_sem_numero_edicao(tmp_path):
+    _criar_jsons_completos(
+        tmp_path,
+        {"tjrr": [_reg("2026-06-08", None, fonte="tjrr",
+                       url_r2="https://pub-xxx.r2.dev/tjrr/2026/06/2026-06-08.pdf")]},
+    )
+    html = gerar_pagina_diarios("tjrr", tmp_path, public_domain="pub-xxx.r2.dev")
+    assert "Edição nº" not in html
+    assert 'href="https://pub-xxx.r2.dev/tjrr/2026/06/2026-06-08.pdf"' in html
+
+
+def test_gerar_pagina_diarios_tem_link_de_volta_ao_indice(tmp_path):
+    _criar_jsons_completos(tmp_path, {"mprr": [_reg("2026-06-08", 975)]})
+    html = gerar_pagina_diarios("mprr", tmp_path, public_domain="pub-xxx.r2.dev")
+    assert 'href="https://pub-xxx.r2.dev/jornal/index.html"' in html
+
+
+def test_gerar_pagina_diarios_vazia_tem_empty_state_e_html_valido(tmp_path):
+    html = gerar_pagina_diarios("mprr", tmp_path, public_domain="pub-xxx.r2.dev")
+    assert "<!DOCTYPE html>" in html
+    assert "</html>" in html.lower()
+    assert "Nenhum diário" in html
+
+
+# =============================================================
+# publicar_pagina_diarios
+# =============================================================
+
+
+def test_publicar_pagina_diarios_mprr_chave(mock_r2):
+    publicar_pagina_diarios("mprr", "<html></html>", mock_r2)
+    assert mock_r2.upload.call_args.args[1] == "jornal/diarios-mprr.html"
+
+
+def test_publicar_pagina_diarios_tjrr_chave(mock_r2):
+    publicar_pagina_diarios("tjrr", "<html></html>", mock_r2)
+    assert mock_r2.upload.call_args.args[1] == "jornal/diarios-tjrr.html"
+
+
+def test_publicar_pagina_diarios_content_type_e_cache_control(mock_r2):
+    publicar_pagina_diarios("mprr", "<html></html>", mock_r2)
+    kwargs = mock_r2.upload.call_args.kwargs
+    assert kwargs["content_type"] == "text/html; charset=utf-8"
+    assert kwargs["cache_control"] == "public, max-age=300"
 
 
 # =============================================================
@@ -140,14 +361,22 @@ def test_coletar_datas_publicaveis_dir_vazio_retorna_lista_vazia(tmp_path):
 # =============================================================
 
 
-def test_gerar_indice_html_contem_links_para_cada_data(tmp_path):
+def test_gerar_indice_tem_links_para_paginas_de_diarios(tmp_path):
     _criar_jsons(
         tmp_path,
         {"mprr": ["2026-05-15-961", "2026-05-14-960"]},
     )
     html = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
-    assert 'href="https://pub-xxx.r2.dev/jornal/2026-05-15.html"' in html
-    assert 'href="https://pub-xxx.r2.dev/jornal/2026-05-14.html"' in html
+    assert 'href="https://pub-xxx.r2.dev/jornal/diarios-mprr.html"' in html
+    assert 'href="https://pub-xxx.r2.dev/jornal/diarios-tjrr.html"' in html
+
+
+def test_gerar_indice_nao_tem_mais_secao_edicoes_anteriores(tmp_path):
+    _criar_jsons(tmp_path, {"mprr": ["2026-05-15-961"]})
+    html = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
+    assert "edicoes-anteriores" not in html
+    assert "lista-edicoes-densa" not in html
+    assert 'href="https://pub-xxx.r2.dev/jornal/2026-05-15.html"' not in html
 
 
 def test_gerar_indice_html_tem_estrutura_basica(tmp_path):
@@ -279,7 +508,12 @@ def test_publicar_tudo_chama_publicar_jornal_depois_publicar_indice(
     )
 
     chaves_uploaded = [c.args[1] for c in mock_r2.upload.call_args_list]
-    assert chaves_uploaded == ["jornal/2026-05-15.html", "jornal/index.html"]
+    assert chaves_uploaded == [
+        "jornal/2026-05-15.html",
+        "jornal/diarios-mprr.html",
+        "jornal/diarios-tjrr.html",
+        "jornal/index.html",
+    ]
 
 
 def test_publicar_tudo_publica_sidecar_quando_arquivo_existe(
@@ -302,6 +536,8 @@ def test_publicar_tudo_publica_sidecar_quando_arquivo_existe(
     assert chaves_uploaded == [
         "jornal/2026-05-15.html",
         "jornal/2026-05-15.json",
+        "jornal/diarios-mprr.html",
+        "jornal/diarios-tjrr.html",
         "jornal/index.html",
     ]
 
@@ -523,9 +759,10 @@ def _render_indice(**ctx):
     base = dict(
         hero=None,
         destaques=[],
-        edicoes=[],
         total_edicoes=0,
         data_ultima_formatada=None,
+        url_diarios_mprr="https://pub-xxx.r2.dev/jornal/diarios-mprr.html",
+        url_diarios_tjrr="https://pub-xxx.r2.dev/jornal/diarios-tjrr.html",
     )
     base.update(ctx)
     return _env.get_template("indice.html.j2").render(**base)
@@ -614,44 +851,25 @@ def test_template_grid_destaques_vazio_nao_renderiza_secao():
     assert 'class="card-destaque"' not in html
 
 
-def test_template_lista_compacta_usa_url_jornal_do_novo_schema():
-    edicoes = [
-        {
-            "data_edicao": "2026-05-15",
-            "data_formatada": "15 de maio de 2026",
-            "url_jornal": "https://pub-xxx.r2.dev/jornal/2026-05-15.html",
-            "total_relevantes": 7,
-        },
-        {
-            "data_edicao": "2026-05-14",
-            "data_formatada": "14 de maio de 2026",
-            "url_jornal": "https://pub-xxx.r2.dev/jornal/2026-05-14.html",
-            "total_relevantes": 3,
-        },
-    ]
-    html = _render_indice(edicoes=edicoes, total_edicoes=2)
-    assert 'href="https://pub-xxx.r2.dev/jornal/2026-05-15.html"' in html
-    assert 'href="https://pub-xxx.r2.dev/jornal/2026-05-14.html"' in html
-    assert "15 de maio de 2026" in html
-    assert "14 de maio de 2026" in html
+def test_template_renderiza_links_para_paginas_de_diarios():
+    html = _render_indice(
+        url_diarios_mprr="https://pub-xxx.r2.dev/jornal/diarios-mprr.html",
+        url_diarios_tjrr="https://pub-xxx.r2.dev/jornal/diarios-tjrr.html",
+    )
+    assert 'href="https://pub-xxx.r2.dev/jornal/diarios-mprr.html"' in html
+    assert 'href="https://pub-xxx.r2.dev/jornal/diarios-tjrr.html"' in html
+    assert "Diários do MPRR" in html
+    assert "Diários do TJRR" in html
 
 
-def test_template_lista_compacta_mostra_total_relevantes_quando_disponivel():
-    edicoes = [
-        {
-            "data_edicao": "2026-05-15",
-            "data_formatada": "15 de maio",
-            "url_jornal": "https://x/j.html",
-            "total_relevantes": 7,
-        },
-    ]
-    html = _render_indice(edicoes=edicoes, total_edicoes=1)
-    # exibe a contagem em alguma forma (ex: "7 matérias")
-    assert "7" in html
+def test_template_nao_tem_mais_lista_de_edicoes_anteriores():
+    html = _render_indice()
+    assert "edicoes-anteriores" not in html
+    assert "lista-edicoes-densa" not in html
 
 
 def test_template_empty_state_quando_nada_disponivel():
-    html = _render_indice(hero=None, destaques=[], edicoes=[], total_edicoes=0)
+    html = _render_indice(hero=None, destaques=[], total_edicoes=0)
     # algum indicador de vazio na home
     assert "nenhuma" in html.lower() or "0 edi" in html.lower()
 
@@ -669,13 +887,14 @@ def test_template_valor_rs_aparece_em_formato_brl_no_hero():
 
 
 def test_gerar_indice_sem_r2_e_modo_degradado(tmp_path):
-    """Sem r2, gerar_indice continua produzindo só a lista (sem hero/grid)."""
+    """Sem r2, gerar_indice renderiza sem hero/grid, mas com os 2 links."""
     _criar_jsons(tmp_path, {"mprr": ["2026-05-15-961"]})
     html = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
     assert 'class="hero"' not in html
     assert 'class="card-destaque"' not in html
-    # link da lista compacta presente
-    assert "jornal/2026-05-15.html" in html
+    # links para as páginas de diários presentes
+    assert 'href="https://pub-xxx.r2.dev/jornal/diarios-mprr.html"' in html
+    assert 'href="https://pub-xxx.r2.dev/jornal/diarios-tjrr.html"' in html
 
 
 def test_gerar_indice_com_r2_baixa_sidecars_e_renderiza_hero(mock_r2, tmp_path):
@@ -693,34 +912,6 @@ def test_gerar_indice_com_r2_baixa_sidecars_e_renderiza_hero(mock_r2, tmp_path):
     )
     assert 'class="hero"' in html
     assert "DESTAQUE PRINCIPAL" in html
-
-
-def test_gerar_indice_com_r2_passa_total_relevantes_do_sidecar(
-    mock_r2, tmp_path,
-):
-    _criar_jsons(
-        tmp_path,
-        {"mprr": ["2026-05-15-961", "2026-05-14-960"]},
-    )
-
-    def fake_download(chave):
-        if "2026-05-15" in chave:
-            return _sidecar_bytes(
-                "2026-05-15", [_materia_dict()] * 5,
-            )
-        if "2026-05-14" in chave:
-            return _sidecar_bytes(
-                "2026-05-14", [_materia_dict()] * 3,
-            )
-        return b"{}"
-
-    mock_r2.download_bytes.side_effect = fake_download
-
-    html = gerar_indice(
-        tmp_path, public_domain="pub-xxx.r2.dev", r2=mock_r2,
-    )
-    assert "5 matérias" in html
-    assert "3 matérias" in html
 
 
 def test_gerar_indice_com_r2_404_em_uma_data_nao_quebra(
@@ -745,7 +936,5 @@ def test_gerar_indice_com_r2_404_em_uma_data_nao_quebra(
     html = gerar_indice(
         tmp_path, public_domain="pub-xxx.r2.dev", r2=mock_r2,
     )
-    # hero do sidecar disponível, lista ainda lista as duas datas (404 não
-    # apaga a edição da lista compacta — o HTML do jornal continua existindo)
+    # hero do sidecar disponível mesmo com 404 em outra data
     assert "OK" in html
-    assert "jornal/2026-05-14.html" in html

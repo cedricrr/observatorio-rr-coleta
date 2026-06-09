@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diários do {{ orgao_nome }} · Observatório Roraima</title>
+    <meta name="description" content="Arquivo de diários oficiais do {{ orgao_subtitulo }} — download em PDF.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,400;9..144,0,600;9..144,0,700;9..144,1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cor-primaria: #1a1a1a;
+            --cor-texto: #2c2c2c;
+            --cor-secundaria: #666;
+            --cor-fundo: #fafafa;
+            --cor-divisa: #e0e0e0;
+            --cor-rule: #c8102e;
+            --max-largura: 1180px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--cor-fundo);
+            color: var(--cor-texto);
+            line-height: 1.5;
+            padding: 0 1rem;
+        }
+
+        a { color: inherit; }
+
+        .container {
+            max-width: var(--max-largura);
+            margin: 0 auto;
+            padding: 1.5rem 0 3rem;
+        }
+
+        /* ============ HEADER ============ */
+        header.masthead {
+            border-top: 3px solid var(--cor-rule);
+            border-bottom: 1px solid var(--cor-primaria);
+            padding: 1.25rem 0 1rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        header.masthead h1.wordmark {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 700;
+            font-size: clamp(2rem, 5vw, 3.25rem);
+            color: var(--cor-primaria);
+            letter-spacing: -0.025em;
+            line-height: 1.05;
+        }
+
+        header.masthead .subhead {
+            font-family: 'Fraunces', Georgia, serif;
+            font-style: italic;
+            font-weight: 400;
+            font-size: 1.05rem;
+            color: var(--cor-secundaria);
+            margin: 0.4rem 0 0.6rem;
+        }
+
+        header.masthead .meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--cor-secundaria);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* ============ VOLTAR ============ */
+        a.voltar {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--cor-secundaria);
+            text-decoration: none;
+            margin-bottom: 1.25rem;
+        }
+
+        a.voltar:hover { color: var(--cor-rule); }
+
+        /* ============ NAV DE ANOS ============ */
+        nav.nav-anos {
+            position: sticky;
+            top: 0;
+            background: var(--cor-fundo);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem 0.9rem;
+            padding: 0.75rem 0;
+            border-top: 1px solid var(--cor-primaria);
+            border-bottom: 1px solid var(--cor-divisa);
+            margin-bottom: 1.5rem;
+            z-index: 5;
+        }
+
+        nav.nav-anos a {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--cor-primaria);
+            text-decoration: none;
+        }
+
+        nav.nav-anos a:hover { color: var(--cor-rule); }
+
+        /* ============ SEÇÕES POR ANO ============ */
+        section.ano-diarios {
+            padding-top: 1rem;
+            margin-bottom: 1.5rem;
+            scroll-margin-top: 3.5rem;
+        }
+
+        section.ano-diarios h2 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 700;
+            font-size: 1.6rem;
+            color: var(--cor-primaria);
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.35rem;
+            border-bottom: 2px solid var(--cor-rule);
+        }
+
+        ul.lista-diarios {
+            list-style: none;
+        }
+
+        ul.lista-diarios li {
+            border-bottom: 1px solid var(--cor-divisa);
+            padding: 0.55rem 0;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 0.5rem 1rem;
+        }
+
+        ul.lista-diarios li .data-diario {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 500;
+            font-size: 1rem;
+            color: var(--cor-primaria);
+            min-width: 11rem;
+        }
+
+        ul.lista-diarios li .num-diario {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--cor-secundaria);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        ul.lista-diarios li .tam-diario {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--cor-secundaria);
+        }
+
+        ul.lista-diarios li .link-pdf {
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--cor-rule);
+            text-decoration: none;
+            border: 1px solid var(--cor-rule);
+            border-radius: 3px;
+            padding: 0.2rem 0.55rem;
+        }
+
+        ul.lista-diarios li .link-pdf:hover {
+            background: var(--cor-rule);
+            color: #fff;
+        }
+
+        /* ============ EMPTY ============ */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 1rem;
+            color: var(--cor-secundaria);
+            font-family: 'Fraunces', Georgia, serif;
+            font-style: italic;
+            font-size: 1.05rem;
+        }
+
+        /* ============ FOOTER ============ */
+        footer.jornal-rodape {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--cor-divisa);
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--cor-secundaria);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="masthead">
+            <h1 class="wordmark">Observatório Roraima</h1>
+            <p class="subhead">Diários oficiais — {{ orgao_nome }}</p>
+            <p class="meta">{{ total }} {{ "edição" if total == 1 else "edições" }} · {{ orgao_subtitulo }}</p>
+        </header>
+
+        <a class="voltar" href="{{ url_indice }}">← Observatório Roraima</a>
+
+        {% if anos %}
+        <nav class="nav-anos">
+            {% for a in anos %}
+            <a href="#ano-{{ a.ano }}">{{ a.ano }}</a>
+            {% endfor %}
+        </nav>
+
+        {% for a in anos %}
+        <section class="ano-diarios" id="ano-{{ a.ano }}">
+            <h2>{{ a.ano }}</h2>
+            <ul class="lista-diarios">
+                {% for e in a.edicoes %}
+                <li>
+                    <span class="data-diario">{{ e.data_formatada }}</span>
+                    {%- if mostrar_numero and e.numero is not none %}
+                    <span class="num-diario">Edição nº {{ e.numero }}</span>
+                    {%- endif %}
+                    {%- if e.tamanho %}
+                    <span class="tam-diario">{{ formatar_tamanho(e.tamanho) }}</span>
+                    {%- endif %}
+                    <a class="link-pdf" href="{{ e.url_r2 }}" target="_blank" rel="noopener">PDF</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">Nenhum diário disponível.</div>
+        {% endif %}
+
+        <footer class="jornal-rodape">
+            <p>Observatório Roraima · Arquivo de diários oficiais</p>
+        </footer>
+    </div>
+</body>
+</html>
