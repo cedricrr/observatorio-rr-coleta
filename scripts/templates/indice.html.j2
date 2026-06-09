@@ -31,6 +31,30 @@
 
         a { color: inherit; }
 
+        /* ============ ACESSIBILIDADE ============ */
+        .skip-link {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            background: var(--cor-primaria);
+            color: var(--cor-fundo);
+            padding: 0.6rem 1rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            z-index: 100;
+        }
+
+        .skip-link:focus {
+            left: 0.5rem;
+            top: 0.5rem;
+        }
+
+        a:focus-visible,
+        .botao-diarios:focus-visible {
+            outline: 2px solid var(--cor-rule);
+            outline-offset: 2px;
+        }
+
         .container {
             max-width: var(--max-largura);
             margin: 0 auto;
@@ -379,6 +403,7 @@
     </style>
 </head>
 <body>
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <div class="container">
         <header class="masthead">
             <h1 class="wordmark">Observatório Roraima</h1>
@@ -388,6 +413,7 @@
             </p>
         </header>
 
+        <main id="conteudo">
         {% if hero %}
         <section class="hero">
             <div class="lado-esquerdo">
@@ -463,6 +489,7 @@
             <a class="botao-diarios" href="{{ url_diarios_mprr }}">Diários do MPRR</a>
             <a class="botao-diarios" href="{{ url_diarios_tjrr }}">Diários do TJRR</a>
         </nav>
+        </main>
 
         <footer class="jornal-rodape">
             <p>Observatório Roraima · Diário editorial automatizado</p>

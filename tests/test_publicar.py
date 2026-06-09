@@ -942,6 +942,29 @@ def test_template_sem_destaques_nao_renderiza_lado_direito():
 
 
 # =============================================================
+# Acessibilidade: main, skip link, foco visível (Ciclo UI/UX 3)
+# =============================================================
+
+
+def test_template_envolve_conteudo_em_main():
+    html = _render_indice()
+    assert "<main" in html
+    assert "</main>" in html
+
+
+def test_template_tem_skip_link_para_conteudo():
+    html = _render_indice()
+    assert 'href="#conteudo"' in html
+    assert "Pular para o conteúdo" in html
+    assert 'id="conteudo"' in html
+
+
+def test_template_define_regra_focus_visible():
+    html = _render_indice()
+    assert ":focus-visible" in html
+
+
+# =============================================================
 # gerar_indice com r2 — Ciclo 11.9
 # =============================================================
 
