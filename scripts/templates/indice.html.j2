@@ -131,6 +131,7 @@
 
         section.hero h2.manchete-hero a {
             text-decoration: none;
+            transition: color .15s ease;
         }
 
         section.hero h2.manchete-hero a:hover {
@@ -144,6 +145,11 @@
             font-size: 1.1rem;
             color: var(--cor-texto);
             line-height: 1.45;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         section.hero .meta-hero {
@@ -165,6 +171,7 @@
         section.hero .meta-hero .link-pdf {
             border-bottom: 1px dotted var(--cor-secundaria);
             text-decoration: none;
+            transition: color .15s ease;
         }
 
         section.hero .meta-hero .link-pdf:hover {
@@ -208,6 +215,7 @@
             line-height: 1.2;
             color: var(--cor-primaria);
             text-decoration: none;
+            transition: color .15s ease;
         }
 
         section.hero .indice-item a:hover {
@@ -275,6 +283,7 @@
 
         .card-destaque h3.manchete-card a {
             text-decoration: none;
+            transition: color .15s ease;
         }
 
         .card-destaque h3.manchete-card a:hover {
@@ -287,6 +296,7 @@
             color: var(--cor-texto);
             display: -webkit-box;
             -webkit-line-clamp: 3;
+            line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
             margin-bottom: 0.5rem;
@@ -326,6 +336,7 @@
             border: 1px solid var(--cor-primaria);
             border-left: 4px solid var(--cor-rule);
             padding: 0.9rem 1.1rem;
+            transition: color .15s ease, background-color .15s ease;
         }
 
         nav.nav-diarios .botao-diarios:hover {
