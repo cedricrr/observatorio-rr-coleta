@@ -49,6 +49,12 @@ Cadeia de estágios isolados e testáveis, do PDF ao HTML:
 - Workflow de CI separado (`testes.yml`): ruff + pytest em push/PR.
 - launchd local **desinstalado** (cópia do plist mantida em `infra/` como rollback).
 - Pegadinha resolvida na migração: os secrets `R2_*` no GitHub estavam com whitespace embutido → boto3 dava `Invalid endpoint`; recadastrados limpos via stdin. `ANTHROPIC_API_KEY` adicionado aos secrets.
+- Migração **validada end-to-end** em 2026-06-08 (diário real: coleta + classificação via API + publicação + commit/push do bot). Actions atualizadas para Node 24 (checkout v6, setup-python v6, cache v5).
+
+### Páginas de download de diários por órgão (2026-06-09)
+- A home (`index.html`) perdeu a lista "Edições anteriores"; no lugar, dois links para páginas standalone de download: **`jornal/diarios-mprr.html`** e **`jornal/diarios-tjrr.html`**.
+- Cada página lista todas as edições do órgão agrupadas por ano (âncoras, sem JS), com link de download apontando para a cópia no R2 (`url_r2`); MPRR mostra "Edição nº", TJRR não.
+- `scripts/publicar.py`: `enumerar_diarios_fonte`, `agrupar_diarios_por_ano`, `gerar_pagina_diarios`, `publicar_pagina_diarios`; template `diarios.html.j2`. Regeradas a cada publish (em `publicar_tudo` e `--apenas-indice`). Implementado via TDD estrito.
 
 ---
 
