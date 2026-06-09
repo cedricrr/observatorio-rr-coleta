@@ -902,6 +902,46 @@ def test_template_card_data_formatada_em_pt_br_abreviado():
 
 
 # =============================================================
+# Índice "Nesta edição" na coluna direita do hero (Ciclo UI/UX 2)
+# =============================================================
+
+
+def test_template_indice_nesta_edicao_renderiza_um_item_por_destaque():
+    grid = [
+        _materia_para_destaque(manchete=f"INDICE-{i}", orgao="MPRR")
+        for i in range(3)
+    ]
+    html = _render_indice(hero=_materia_para_destaque(manchete="H"), destaques=grid)
+    assert 'class="lado-direito"' in html
+    assert html.count('class="indice-item"') == 3
+    for i in range(3):
+        assert f"INDICE-{i}" in html
+
+
+def test_template_indice_nesta_edicao_linka_para_pdf_do_destaque():
+    grid = [
+        _materia_para_destaque(
+            manchete="LINK-IDX", pdf_url="https://x/idx-unico.pdf",
+        ),
+    ]
+    html = _render_indice(hero=_materia_para_destaque(manchete="H"), destaques=grid)
+    assert 'href="https://x/idx-unico.pdf"' in html
+    assert "Nesta edição" in html
+
+
+def test_template_indice_nesta_edicao_inclui_orgao_do_destaque():
+    grid = [_materia_para_destaque(manchete="ORG-IDX", orgao="TJRR")]
+    html = _render_indice(hero=_materia_para_destaque(manchete="H"), destaques=grid)
+    assert "TJRR" in html
+
+
+def test_template_sem_destaques_nao_renderiza_lado_direito():
+    html = _render_indice(hero=_materia_para_destaque(manchete="H"), destaques=[])
+    assert 'class="lado-direito"' not in html
+    assert 'class="indice-item"' not in html
+
+
+# =============================================================
 # gerar_indice com r2 — Ciclo 11.9
 # =============================================================
 
