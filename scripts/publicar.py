@@ -15,7 +15,11 @@ from botocore.exceptions import ClientError
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from scripts.r2_client import R2Client
-from scripts.renderizar import _formatar_data_pt_br, _formatar_valor_brl
+from scripts.renderizar import (
+    _formatar_data_abrev,
+    _formatar_data_pt_br,
+    _formatar_valor_brl,
+)
 
 RESUMO_MAX_CHARS = 280
 
@@ -59,6 +63,7 @@ _env = Environment(
     lstrip_blocks=True,
 )
 _env.globals["formatar_valor"] = _formatar_valor_brl
+_env.globals["formatar_data"] = _formatar_data_abrev
 
 
 def publicar_jornal(

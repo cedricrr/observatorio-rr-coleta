@@ -352,7 +352,7 @@
                     <span class="valor">R$ {{ formatar_valor(hero.valor_rs) }}</span>
                     {%- endif %}
                     {%- if hero.data_edicao %}
-                    <span class="data">{{ hero.data_edicao }}</span>
+                    <span class="data">{{ formatar_data(hero.data_edicao) }}</span>
                     {%- endif %}
                     {%- if hero.pdf_url %}
                     <a class="link-pdf" href="{{ hero.pdf_url }}" target="_blank" rel="noopener">diário oficial (PDF)</a>
@@ -384,7 +384,7 @@
                     <span class="valor">R$ {{ formatar_valor(d.valor_rs) }}</span>
                     {%- endif %}
                     {%- if d.data_edicao %}
-                    <span class="data">{{ d.data_edicao }}</span>
+                    <span class="data">{{ formatar_data(d.data_edicao) }}</span>
                     {%- endif %}
                 </div>
             </article>

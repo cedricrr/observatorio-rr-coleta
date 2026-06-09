@@ -244,3 +244,43 @@ def test_renderiza_inclui_link_para_pdf_original():
         or f"href='{pdf_url_unica}'" in html
     )
     assert "Fonte" in html
+
+
+# =============================================================
+# GRUPO H — formatar_data (ISO → PT-BR abreviado) — índice
+# =============================================================
+#
+# Helper consumido como global Jinja `formatar_data` no índice da home,
+# para substituir a data ISO crua ("2026-06-08") por "08 JUN 2026".
+
+
+def test_formatar_data_abrev_converte_iso_para_pt_br():
+    from scripts.renderizar import _formatar_data_abrev
+    assert _formatar_data_abrev("2026-06-08") == "08 JUN 2026"
+
+
+def test_formatar_data_abrev_dia_com_dois_digitos():
+    from scripts.renderizar import _formatar_data_abrev
+    # dia de um dígito ganha zero à esquerda
+    assert _formatar_data_abrev("2026-01-03") == "03 JAN 2026"
+
+
+def test_formatar_data_abrev_string_vazia_retorna_vazio():
+    from scripts.renderizar import _formatar_data_abrev
+    assert _formatar_data_abrev("") == ""
+
+
+def test_formatar_data_abrev_none_retorna_vazio():
+    from scripts.renderizar import _formatar_data_abrev
+    assert _formatar_data_abrev(None) == ""
+
+
+def test_formatar_data_abrev_todos_os_doze_meses():
+    from scripts.renderizar import _formatar_data_abrev
+    esperado = [
+        "JAN", "FEV", "MAR", "ABR", "MAI", "JUN",
+        "JUL", "AGO", "SET", "OUT", "NOV", "DEZ",
+    ]
+    for mes in range(1, 13):
+        iso = date(2026, mes, 1).isoformat()
+        assert _formatar_data_abrev(iso) == f"01 {esperado[mes - 1]} 2026"

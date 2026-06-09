@@ -16,9 +16,22 @@ _MESES_PT_BR = [
     "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ]
 
+_MESES_ABREV_PT_BR = [
+    "JAN", "FEV", "MAR", "ABR", "MAI", "JUN",
+    "JUL", "AGO", "SET", "OUT", "NOV", "DEZ",
+]
+
 
 def _formatar_data_pt_br(d: date) -> str:
     return f"{d.day} de {_MESES_PT_BR[d.month - 1]} de {d.year}"
+
+
+def _formatar_data_abrev(iso: str | None) -> str:
+    """ISO "YYYY-MM-DD" → "08 JUN 2026" (mês abreviado PT-BR). Falsy → ""."""
+    if not iso:
+        return ""
+    d = date.fromisoformat(iso)
+    return f"{d.day:02d} {_MESES_ABREV_PT_BR[d.month - 1]} {d.year}"
 
 
 def _formatar_valor_brl(valor: float) -> str:

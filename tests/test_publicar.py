@@ -882,6 +882,26 @@ def test_template_valor_rs_aparece_em_formato_brl_no_hero():
 
 
 # =============================================================
+# Datas formatadas no hero e cards — formatar_data (Ciclo UI/UX 1)
+# =============================================================
+
+
+def test_template_hero_data_formatada_em_pt_br_abreviado():
+    hero = _materia_para_destaque(data_edicao="2026-06-08", manchete="HERO-DATA")
+    html = _render_indice(hero=hero)
+    assert "08 JUN 2026" in html
+    # a ISO crua não pode vazar na UI
+    assert "2026-06-08" not in html
+
+
+def test_template_card_data_formatada_em_pt_br_abreviado():
+    grid = [_materia_para_destaque(data_edicao="2026-06-08", manchete="CARD-DATA")]
+    html = _render_indice(destaques=grid)
+    assert "08 JUN 2026" in html
+    assert "2026-06-08" not in html
+
+
+# =============================================================
 # gerar_indice com r2 — Ciclo 11.9
 # =============================================================
 
