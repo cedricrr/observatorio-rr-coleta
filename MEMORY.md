@@ -56,6 +56,14 @@ Cadeia de estágios isolados e testáveis, do PDF ao HTML:
 - Cada página lista todas as edições do órgão agrupadas por ano (âncoras, sem JS), com link de download apontando para a cópia no R2 (`url_r2`); MPRR mostra "Edição nº", TJRR não.
 - `scripts/publicar.py`: `enumerar_diarios_fonte`, `agrupar_diarios_por_ano`, `gerar_pagina_diarios`, `publicar_pagina_diarios`; template `diarios.html.j2`. Regeradas a cada publish (em `publicar_tudo` e `--apenas-indice`). Implementado via TDD estrito.
 
+### Polimento de UI/UX do índice (2026-06-09)
+Cinco correções no template da home (`indice.html.j2`) + filtros, via TDD estrito (um ciclo por problema):
+- **Datas formatadas**: novo global Jinja `formatar_data` (`_formatar_data_abrev` em `renderizar.py`) converte ISO → `08 JUN 2026`; hero/cards não vazam mais ISO cru. Masthead segue no formato longo (`_formatar_data_pt_br`).
+- **Coluna direita útil**: a `.lado-direito` (antes `<div>` vazio com `border-left` morto em ≥1024px) virou índice "Nesta edição" — manchetes + órgão dos destaques, linkando ao mesmo `pdf_url` do card. Sem destaques, a coluna não renderiza.
+- **Acessibilidade**: `<main id="conteudo">`, skip link e `:focus-visible` em links/botões.
+- **Trava editorial**: hero e loops só renderizam itens com `publicar | default(true)` — defesa em profundidade contra item sensível que escape do classificador.
+- **CSS**: `line-clamp` padrão ao lado de `-webkit-line-clamp`, clamp de 4 linhas na `.lede`, transições de cor no hover.
+
 ---
 
 ## Princípios que se mantêm
