@@ -414,7 +414,7 @@
         </header>
 
         <main id="conteudo">
-        {% if hero %}
+        {% if hero and (hero.publicar | default(true)) %}
         <section class="hero">
             <div class="lado-esquerdo">
                 <p class="kicker">
@@ -442,7 +442,7 @@
             <aside class="lado-direito">
                 <p class="indice-titulo">Nesta edição</p>
                 <ul class="indice-edicao">
-                    {% for d in destaques %}
+                    {% for d in destaques if d.publicar | default(true) %}
                     <li class="indice-item">
                         <a href="{{ d.pdf_url }}" target="_blank" rel="noopener">{{ d.manchete }}</a>
                         <span class="indice-orgao">{{ d.orgao }}</span>
@@ -457,7 +457,7 @@
 
         {% if destaques %}
         <section class="grid-destaques">
-            {% for d in destaques %}
+            {% for d in destaques if d.publicar | default(true) %}
             <article class="card-destaque">
                 <p class="kicker">
                     {{ d.categoria }}<span class="sep">·</span>{{ d.orgao }}

@@ -965,6 +965,50 @@ def test_template_define_regra_focus_visible():
 
 
 # =============================================================
+# Trava editorial: publicar no hero e nos loops (Ciclo UI/UX 4)
+# =============================================================
+
+
+def test_template_hero_com_publicar_false_nao_renderiza():
+    hero = _materia_para_destaque(manchete="HERO-SECRETO", publicar=False)
+    html = _render_indice(hero=hero)
+    assert "HERO-SECRETO" not in html
+    assert 'class="hero"' not in html
+
+
+def test_template_card_com_publicar_false_nao_aparece():
+    grid = [
+        _materia_para_destaque(manchete="CARD-OK", publicar=True),
+        _materia_para_destaque(manchete="CARD-SECRETO", publicar=False),
+    ]
+    html = _render_indice(destaques=grid)
+    assert "CARD-OK" in html
+    assert "CARD-SECRETO" not in html
+    assert html.count('class="card-destaque"') == 1
+
+
+def test_template_indice_nesta_edicao_respeita_publicar_false():
+    grid = [
+        _materia_para_destaque(manchete="IDX-OK", publicar=True),
+        _materia_para_destaque(manchete="IDX-SECRETO", publicar=False),
+    ]
+    html = _render_indice(hero=_materia_para_destaque(manchete="H"), destaques=grid)
+    assert "IDX-SECRETO" not in html
+    assert html.count('class="indice-item"') == 1
+
+
+def test_template_sem_campo_publicar_renderiza_normalmente():
+    # ausência do campo mantém comportamento atual (renderiza)
+    hero = _materia_para_destaque(manchete="HERO-DEFAULT")
+    grid = [_materia_para_destaque(manchete="CARD-DEFAULT")]
+    assert "publicar" not in hero
+    html = _render_indice(hero=hero, destaques=grid)
+    assert "HERO-DEFAULT" in html
+    assert "CARD-DEFAULT" in html
+    assert 'class="hero"' in html
+
+
+# =============================================================
 # gerar_indice com r2 — Ciclo 11.9
 # =============================================================
 
