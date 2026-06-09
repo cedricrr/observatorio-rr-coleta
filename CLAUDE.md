@@ -117,6 +117,15 @@ Convenções que são contrato:
 - **Testes com `mock.patch` + `importlib`**: o patch de `importlib.import_module` precisa ser o **último** decorator/context, senão patches subsequentes falham silenciosamente.
 - As fixtures em `tests/fixtures/` são Markdown real congelado de edições MPRR/TJRR — os regex de `segmentar.py` são validados contra elas; ao mexer nos padrões, rode `test_segmentar.py`.
 
-## Automação (`infra/`, `scripts/rodar_jornal.sh`)
+## Automação (`.github/workflows/coletar.yml`)
 
-launchd roda `rodar_jornal.sh` 2x/dia (09:00 e 18:00) via `com.observatoriorr.jornal.plist`. O wrapper roda `jornal_diario` e, se exit==0, `publicar`. launchd **não injeta env vars** — o `WEBHOOK_URL` (notificação de falha opcional) é lido grepando o `.env`. GitHub Actions está bloqueado no repo (ticket aberto); a automação vive nesse cron local no Mac.
+A automação roda no **GitHub Actions** (o launchd local foi desinstalado). Roraima é **UTC-4 fixo** (sem horário de verão), e o diário publicado pelos órgãos "a partir das 20h" da noite de D-1 carrega **data de edição D** — por isso `date.today()` (UTC) do runner já é a edição alvo e **`--data hoje` está correto nas três janelas**.
+
+`coletar.yml` tem 3 jobs, cada um *gated* por `github.event.schedule`:
+- **`coleta`** — cron `0 2 * * *` (22h Roraima, ~2h após a publicação dos órgãos): só arquivamento, `scripts.coletar` (PDF → R2 + Wayback) + commit dos JSONs. **Sem custo de API.**
+- **`publicacao`** — cron `0 6 * * *` (2h Roraima) **ou** `workflow_dispatch`: `scripts.jornal_diario` (coleta inline via dedupe + editorial/classificação) + `scripts.publicar` (HTML + sidecar + índice) + commit. É também o caminho do disparo manual.
+- **`retry`** — cron `0 12 * * *` (8h Roraima): **segunda tentativa**. Um step guard checa `r2.existe("jornal/<data>.html")`; se já publicado, pula tudo (job verde); senão repete editorial + publicação.
+
+Jobs são runs independentes — não há problema, porque `jornal_diario` re-deriva do R2 (dedupe via `r2.existe`), então cada job é auto-suficiente. O scheduler do Actions atrasa runs em 0–3h (e pode pulá-los); os atraso mantêm o run no mesmo dia UTC até 00:00 UTC (= 20h local), antes da próxima coleta — robusto.
+
+`scripts/rodar_jornal.sh` (wrapper do antigo launchd, com notificação via `WEBHOOK_URL` lido do `.env`) permanece no repo como histórico mas **não é usado** pelo Actions.

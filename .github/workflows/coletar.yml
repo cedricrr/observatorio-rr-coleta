@@ -1,11 +1,18 @@
 name: Jornal diário (coleta + editorial + publicação)
 
+# Cadência alinhada ao ciclo dos órgãos: os diários saem "a partir das 20h"
+# (Roraima, UTC-4 fixo, sem horário de verão). O diário publicado na noite de
+# D-1 carrega data de edição D, então `date.today()` (UTC) do runner já é a
+# edição alvo nos três horários — `--data hoje` está correto em todos.
+#
+#   22h Roraima = 02 UTC  -> coleta (arquivamento: PDF -> R2 + Wayback)
+#    2h Roraima = 06 UTC  -> editorial + publicação da edição
+#    8h Roraima = 12 UTC  -> segunda tentativa (só se ainda não publicado)
 on:
   schedule:
-    # Roraima é UTC-4 fixo (sem horário de verão). Espelha o launchd local:
-    # 09h Roraima = 13 UTC, 18h Roraima = 22 UTC.
-    - cron: "0 13 * * *"
-    - cron: "0 22 * * *"
+    - cron: "0 2 * * *"
+    - cron: "0 6 * * *"
+    - cron: "0 12 * * *"
   workflow_dispatch:
     inputs:
       data:
@@ -25,7 +32,58 @@ permissions:
   contents: write
 
 jobs:
-  jornal:
+  # 02 UTC (22h Roraima): só arquivamento — baixa PDFs para o R2 + Wayback +
+  # commita os JSONs imutáveis. Sem custo de API (não roda o editorial).
+  coleta:
+    if: github.event.schedule == '0 2 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Cache pip
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+
+      - name: Instalar dependências
+        run: pip install -e ".[dev]"
+
+      - name: Coletar diários (PDF -> R2 + Wayback)
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_DOMAIN: ${{ secrets.R2_PUBLIC_DOMAIN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: python -m scripts.coletar --data hoje --fonte todas
+
+      - name: Commit dos JSONs novos
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/diarios/
+          if git diff --cached --quiet; then
+            echo "Nenhum diário novo coletado nesta execução."
+            exit 0
+          fi
+          data_iso=$(date -u +"%Y-%m-%d")
+          git commit -m "chore(data): coleta automática de ${data_iso}" \
+                     -m "Coleta agendada (02 UTC / 22h Roraima)." \
+                     -m "Run ID: ${{ github.run_id }}"
+          git push
+
+  # 06 UTC (2h Roraima): gera o editorial (coleta inline via dedupe + classifica)
+  # e publica HTML + sidecar + índice no R2. Também é o caminho do disparo manual.
+  publicacao:
+    if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -81,6 +139,88 @@ jobs:
           fi
           data_iso=$(date -u +"%Y-%m-%d")
           git commit -m "chore(data): coleta automática de ${data_iso}" \
-                     -m "Execução agendada do workflow coletar.yml (pipeline completo)." \
+                     -m "Publicação agendada (06 UTC / 2h Roraima)." \
+                     -m "Run ID: ${{ github.run_id }}"
+          git push
+
+  # 12 UTC (8h Roraima): segunda tentativa. Só roda se a edição do dia ainda
+  # não estiver publicada no R2 (jornal/<data>.html). Evita reprocessar e
+  # gastar API à toa quando a janela das 2h já deu certo.
+  retry:
+    if: github.event.schedule == '0 12 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Cache pip
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+
+      - name: Instalar dependências
+        run: pip install -e ".[dev]"
+
+      - name: Verificar se a edição já foi publicada
+        id: check
+        env:
+          DATA: ${{ github.event.inputs.data || '' }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_DOMAIN: ${{ secrets.R2_PUBLIC_DOMAIN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          : "${DATA:=$(date -u +%F)}"
+          export DATA
+          if python -c "import os, sys; from scripts.r2_client import R2Client; sys.exit(0 if R2Client.from_env().existe(f\"jornal/{os.environ['DATA']}.html\") else 1)"; then
+            echo "Edição $DATA já publicada — retry dispensado."
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Edição $DATA ausente no R2 — rodando segunda tentativa."
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Gerar jornal (coleta inline + editorial)
+        if: steps.check.outputs.published != 'true'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_DOMAIN: ${{ secrets.R2_PUBLIC_DOMAIN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m scripts.jornal_diario --data hoje --fonte todas
+
+      - name: Publicar jornal e índice no R2
+        if: steps.check.outputs.published != 'true'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_DOMAIN: ${{ secrets.R2_PUBLIC_DOMAIN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: python -m scripts.publicar --data hoje
+
+      - name: Commit dos JSONs novos
+        if: steps.check.outputs.published != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/diarios/
+          if git diff --cached --quiet; then
+            echo "Nenhum diário novo coletado nesta execução."
+            exit 0
+          fi
+          data_iso=$(date -u +"%Y-%m-%d")
+          git commit -m "chore(data): coleta automática de ${data_iso}" \
+                     -m "Segunda tentativa (12 UTC / 8h Roraima)." \
                      -m "Run ID: ${{ github.run_id }}"
           git push
