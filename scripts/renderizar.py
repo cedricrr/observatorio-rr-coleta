@@ -6,6 +6,7 @@ from datetime import date
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from markupsafe import Markup, escape
 
 from scripts.segmentar import Materia
 
@@ -37,6 +38,115 @@ def _formatar_data_abrev(iso: str | None) -> str:
 def _formatar_valor_brl(valor: float) -> str:
     formatado_us = f"{valor:,.2f}"
     return formatado_us.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+# ---------------------------------------------------------------------------
+# Ilustração SVG temática da coluna direita do hero (índice da home).
+# Determinística: o motivo é escolhido pela categoria do destaque e a cor
+# de acento pelo órgão. Sem dependências externas — SVG inline.
+# ---------------------------------------------------------------------------
+
+_ILUSTRA_INK = "#1a1a1a"
+
+_ACENTO_ORGAO = {
+    "MPRR": "#c8102e",
+    "TJRR": "#1d4e89",
+}
+_ACENTO_PADRAO = "#c8102e"
+
+# Cada motivo usa os placeholders {ink} e {accent}; viewBox 0 0 200 200.
+_MOTIVO_PADRAO = (
+    '<rect x="56" y="58" width="80" height="66" rx="5" fill="#fff" stroke="{ink}" stroke-width="4"/>'
+    '<rect x="66" y="70" width="28" height="22" fill="none" stroke="{accent}" stroke-width="3.5"/>'
+    '<line x1="100" y1="72" x2="126" y2="72" stroke="{ink}" stroke-width="3.5" stroke-linecap="round"/>'
+    '<line x1="100" y1="82" x2="126" y2="82" stroke="{ink}" stroke-width="3.5" stroke-linecap="round"/>'
+    '<line x1="100" y1="92" x2="120" y2="92" stroke="{ink}" stroke-width="3.5" stroke-linecap="round"/>'
+    '<line x1="66" y1="104" x2="126" y2="104" stroke="{ink}" stroke-width="3.5" stroke-linecap="round"/>'
+    '<line x1="66" y1="114" x2="110" y2="114" stroke="{ink}" stroke-width="3.5" stroke-linecap="round"/>'
+)
+
+_MOTIVOS_CATEGORIA = {
+    "Contratos e licitações": (
+        '<rect x="58" y="46" width="60" height="82" rx="5" fill="#fff" stroke="{ink}" stroke-width="4"/>'
+        '<line x1="70" y1="68" x2="106" y2="68" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
+        '<line x1="70" y1="84" x2="106" y2="84" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
+        '<line x1="70" y1="100" x2="92" y2="100" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
+        '<circle cx="122" cy="124" r="22" fill="#fff" stroke="{accent}" stroke-width="4"/>'
+        '<text x="122" y="131" text-anchor="middle" font-family="Georgia, serif"'
+        ' font-size="17" font-weight="700" fill="{accent}">R$</text>'
+    ),
+    "Movimentação de pessoal": (
+        '<circle cx="72" cy="82" r="13" fill="none" stroke="{ink}" stroke-width="4"/>'
+        '<path d="M54 120 q18 -26 36 0" fill="none" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
+        '<circle cx="128" cy="82" r="13" fill="none" stroke="{accent}" stroke-width="4"/>'
+        '<path d="M110 120 q18 -26 36 0" fill="none" stroke="{accent}" stroke-width="4" stroke-linecap="round"/>'
+        '<path d="M88 100 h24" fill="none" stroke="{accent}" stroke-width="3.5" stroke-linecap="round"/>'
+        '<path d="M106 94 l8 6 -8 6" fill="none" stroke="{accent}" stroke-width="3.5"'
+        ' stroke-linecap="round" stroke-linejoin="round"/>'
+    ),
+    "Investigações e inquéritos": (
+        '<circle cx="90" cy="88" r="32" fill="#fff" stroke="{ink}" stroke-width="4"/>'
+        '<path d="M78 88 a12 12 0 0 1 12 -12" fill="none" stroke="{accent}" stroke-width="4" stroke-linecap="round"/>'
+        '<line x1="114" y1="112" x2="142" y2="140" stroke="{accent}" stroke-width="7" stroke-linecap="round"/>'
+    ),
+    "Atos normativos": (
+        '<rect x="58" y="44" width="64" height="86" rx="5" fill="#fff" stroke="{ink}" stroke-width="4"/>'
+        '<text x="90" y="104" text-anchor="middle" font-family="Georgia, serif"'
+        ' font-size="52" fill="{accent}">§</text>'
+    ),
+    "Designações e nomeações": (
+        '<path d="M86 102 l-12 32 16 -9 8 13 8 -13 16 9 -12 -32" fill="none"'
+        ' stroke="{ink}" stroke-width="3.5" stroke-linejoin="round"/>'
+        '<circle cx="100" cy="82" r="28" fill="#fff" stroke="{accent}" stroke-width="4"/>'
+        '<text x="100" y="92" text-anchor="middle" font-family="Georgia, serif"'
+        ' font-size="30" fill="{accent}">★</text>'
+    ),
+    "Concursos e delegações": (
+        '<rect x="62" y="52" width="60" height="80" rx="6" fill="#fff" stroke="{ink}" stroke-width="4"/>'
+        '<rect x="82" y="44" width="20" height="14" rx="3" fill="#fff" stroke="{ink}" stroke-width="4"/>'
+        '<path d="M72 78 l6 6 11 -13" fill="none" stroke="{accent}" stroke-width="4"'
+        ' stroke-linecap="round" stroke-linejoin="round"/>'
+        '<path d="M72 104 l6 6 11 -13" fill="none" stroke="{accent}" stroke-width="4"'
+        ' stroke-linecap="round" stroke-linejoin="round"/>'
+        '<line x1="98" y1="78" x2="114" y2="78" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
+        '<line x1="98" y1="104" x2="114" y2="104" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
+    ),
+    "Cessões e cooperações": (
+        '<path d="M68 80 a36 36 0 0 1 62 -8" fill="none" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
+        '<path d="M130 72 l3 -16 -16 5" fill="none" stroke="{ink}" stroke-width="4"'
+        ' stroke-linecap="round" stroke-linejoin="round"/>'
+        '<path d="M132 120 a36 36 0 0 1 -62 8" fill="none" stroke="{accent}" stroke-width="4" stroke-linecap="round"/>'
+        '<path d="M70 128 l-3 16 16 -5" fill="none" stroke="{accent}" stroke-width="4"'
+        ' stroke-linecap="round" stroke-linejoin="round"/>'
+    ),
+    "Decisões judiciais relevantes": (
+        '<line x1="100" y1="50" x2="100" y2="128" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
+        '<line x1="66" y1="64" x2="134" y2="64" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
+        '<circle cx="100" cy="50" r="5" fill="{accent}"/>'
+        '<path d="M66 64 L54 92 a16 10 0 0 0 24 0 Z" fill="none" stroke="{accent}"'
+        ' stroke-width="3.5" stroke-linejoin="round"/>'
+        '<path d="M134 64 L122 92 a16 10 0 0 0 24 0 Z" fill="none" stroke="{accent}"'
+        ' stroke-width="3.5" stroke-linejoin="round"/>'
+        '<line x1="82" y1="132" x2="118" y2="132" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
+    ),
+    "Outros": _MOTIVO_PADRAO,
+}
+
+
+def _ilustracao_categoria(categoria: str | None, orgao: str | None = None) -> Markup:
+    """SVG inline temático para a categoria do hero, com acento por órgão."""
+    accent = _ACENTO_ORGAO.get((orgao or "").strip().upper(), _ACENTO_PADRAO)
+    motivo = _MOTIVOS_CATEGORIA.get(categoria or "", _MOTIVO_PADRAO)
+    rotulo = escape(categoria or "matéria em destaque")
+    svg = (
+        '<svg class="ilustra-svg" viewBox="0 0 200 200"'
+        ' xmlns="http://www.w3.org/2000/svg" role="img"'
+        f' aria-label="Ilustração: {rotulo}">'
+        f'<circle cx="100" cy="100" r="82" fill="{accent}" opacity="0.06"/>'
+        f'{motivo.format(ink=_ILUSTRA_INK, accent=accent)}'
+        '</svg>'
+    )
+    return Markup(svg)
 
 
 def _agrupar_por_orgao(

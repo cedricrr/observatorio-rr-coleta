@@ -19,6 +19,7 @@ from scripts.renderizar import (
     _formatar_data_abrev,
     _formatar_data_pt_br,
     _formatar_valor_brl,
+    _ilustracao_categoria,
 )
 
 RESUMO_MAX_CHARS = 280
@@ -64,6 +65,7 @@ _env = Environment(
 )
 _env.globals["formatar_valor"] = _formatar_valor_brl
 _env.globals["formatar_data"] = _formatar_data_abrev
+_env.globals["ilustracao_categoria"] = _ilustracao_categoria
 
 
 def publicar_jornal(

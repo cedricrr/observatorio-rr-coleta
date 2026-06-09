@@ -179,57 +179,18 @@
             border-bottom-color: var(--cor-primaria);
         }
 
-        /* índice "Nesta edição" na coluna direita do hero */
+        /* ilustração temática na coluna direita do hero */
         section.hero .lado-direito {
             margin-top: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        section.hero .indice-titulo {
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 500;
-            font-size: 0.72rem;
-            color: var(--cor-rule);
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            margin-bottom: 0.85rem;
-        }
-
-        section.hero .indice-edicao {
-            list-style: none;
-        }
-
-        section.hero .indice-item {
-            border-top: 1px solid var(--cor-divisa);
-            padding: 0.7rem 0;
-        }
-
-        section.hero .indice-item:first-child {
-            border-top: none;
-            padding-top: 0;
-        }
-
-        section.hero .indice-item a {
-            font-family: 'Fraunces', Georgia, serif;
-            font-weight: 600;
-            font-size: 1rem;
-            line-height: 1.2;
-            color: var(--cor-primaria);
-            text-decoration: none;
-            transition: color .15s ease;
-        }
-
-        section.hero .indice-item a:hover {
-            color: var(--cor-rule);
-        }
-
-        section.hero .indice-orgao {
-            display: block;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.65rem;
-            color: var(--cor-secundaria);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-top: 0.25rem;
+        section.hero .ilustra-svg {
+            width: 100%;
+            max-width: 220px;
+            height: auto;
         }
 
         /* divisor entre hero e grid */
@@ -449,19 +410,9 @@
                     {%- endif %}
                 </div>
             </div>
-            {% if destaques %}
             <aside class="lado-direito">
-                <p class="indice-titulo">Nesta edição</p>
-                <ul class="indice-edicao">
-                    {% for d in destaques if d.publicar | default(true) %}
-                    <li class="indice-item">
-                        <a href="{{ d.pdf_url }}" target="_blank" rel="noopener">{{ d.manchete }}</a>
-                        <span class="indice-orgao">{{ d.orgao }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
+                {{ ilustracao_categoria(hero.categoria, hero.orgao) }}
             </aside>
-            {% endif %}
         </section>
         <hr class="regra">
         {% endif %}

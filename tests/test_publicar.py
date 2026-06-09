@@ -902,42 +902,42 @@ def test_template_card_data_formatada_em_pt_br_abreviado():
 
 
 # =============================================================
-# Índice "Nesta edição" na coluna direita do hero (Ciclo UI/UX 2)
+# Ilustração SVG temática na coluna direita do hero (Ciclo UI/UX 6)
 # =============================================================
+#
+# Substitui o índice "Nesta edição" (que repetia as manchetes dos cards)
+# por uma ilustração SVG escolhida pela categoria do hero.
 
 
-def test_template_indice_nesta_edicao_renderiza_um_item_por_destaque():
-    grid = [
-        _materia_para_destaque(manchete=f"INDICE-{i}", orgao="MPRR")
-        for i in range(3)
-    ]
-    html = _render_indice(hero=_materia_para_destaque(manchete="H"), destaques=grid)
+def test_template_hero_renderiza_ilustracao_svg():
+    hero = _materia_para_destaque(
+        categoria="Investigações e inquéritos", manchete="H",
+    )
+    html = _render_indice(hero=hero)
     assert 'class="lado-direito"' in html
-    assert html.count('class="indice-item"') == 3
-    for i in range(3):
-        assert f"INDICE-{i}" in html
+    assert "<svg" in html
+    assert "ilustra-svg" in html
 
 
-def test_template_indice_nesta_edicao_linka_para_pdf_do_destaque():
-    grid = [
-        _materia_para_destaque(
-            manchete="LINK-IDX", pdf_url="https://x/idx-unico.pdf",
-        ),
-    ]
-    html = _render_indice(hero=_materia_para_destaque(manchete="H"), destaques=grid)
-    assert 'href="https://x/idx-unico.pdf"' in html
-    assert "Nesta edição" in html
+def test_template_ilustracao_presente_mesmo_sem_destaques():
+    hero = _materia_para_destaque(categoria="Atos normativos", manchete="H")
+    html = _render_indice(hero=hero, destaques=[])
+    assert 'class="lado-direito"' in html
+    assert "<svg" in html
 
 
-def test_template_indice_nesta_edicao_inclui_orgao_do_destaque():
-    grid = [_materia_para_destaque(manchete="ORG-IDX", orgao="TJRR")]
-    html = _render_indice(hero=_materia_para_destaque(manchete="H"), destaques=grid)
-    assert "TJRR" in html
-
-
-def test_template_sem_destaques_nao_renderiza_lado_direito():
-    html = _render_indice(hero=_materia_para_destaque(manchete="H"), destaques=[])
+def test_template_sem_hero_nao_renderiza_ilustracao():
+    html = _render_indice(hero=None)
     assert 'class="lado-direito"' not in html
+    assert "<svg" not in html
+
+
+def test_template_lado_direito_nao_repete_manchetes_dos_cards():
+    # a coluna direita deixou de duplicar as manchetes dos cards
+    grid = [_materia_para_destaque(manchete=f"CARD-{i}") for i in range(3)]
+    hero = _materia_para_destaque(categoria="Contratos e licitações", manchete="H")
+    html = _render_indice(hero=hero, destaques=grid)
+    assert "Nesta edição" not in html
     assert 'class="indice-item"' not in html
 
 
@@ -985,16 +985,6 @@ def test_template_card_com_publicar_false_nao_aparece():
     assert "CARD-OK" in html
     assert "CARD-SECRETO" not in html
     assert html.count('class="card-destaque"') == 1
-
-
-def test_template_indice_nesta_edicao_respeita_publicar_false():
-    grid = [
-        _materia_para_destaque(manchete="IDX-OK", publicar=True),
-        _materia_para_destaque(manchete="IDX-SECRETO", publicar=False),
-    ]
-    html = _render_indice(hero=_materia_para_destaque(manchete="H"), destaques=grid)
-    assert "IDX-SECRETO" not in html
-    assert html.count('class="indice-item"') == 1
 
 
 def test_template_sem_campo_publicar_renderiza_normalmente():

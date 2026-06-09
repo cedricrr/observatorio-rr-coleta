@@ -284,3 +284,54 @@ def test_formatar_data_abrev_todos_os_doze_meses():
     for mes in range(1, 13):
         iso = date(2026, mes, 1).isoformat()
         assert _formatar_data_abrev(iso) == f"01 {esperado[mes - 1]} 2026"
+
+
+# =============================================================
+# GRUPO I — ilustração SVG temática por categoria (coluna do hero)
+# =============================================================
+#
+# Helper consumido como global Jinja `ilustracao_categoria` no índice:
+# devolve um SVG inline escolhido pela categoria do hero, com cor de
+# acento por órgão (MPRR/TJRR).
+
+
+def test_ilustracao_categoria_retorna_svg():
+    from scripts.renderizar import _ilustracao_categoria
+    svg = str(_ilustracao_categoria("Investigações e inquéritos", "MPRR"))
+    assert svg.startswith("<svg")
+    assert "</svg>" in svg
+
+
+def test_ilustracao_categoria_acento_muda_por_orgao():
+    from scripts.renderizar import _ilustracao_categoria
+    mprr = str(_ilustracao_categoria("Contratos e licitações", "MPRR"))
+    tjrr = str(_ilustracao_categoria("Contratos e licitações", "TJRR"))
+    assert "#c8102e" in mprr   # vermelho MPRR
+    assert "#1d4e89" in tjrr   # azul TJRR
+    assert mprr != tjrr
+
+
+def test_ilustracao_categoria_desconhecida_usa_fallback():
+    from scripts.renderizar import _ilustracao_categoria
+    svg = str(_ilustracao_categoria("Categoria Inexistente", "MPRR"))
+    assert svg.startswith("<svg")
+
+
+def test_ilustracao_categoria_none_nao_quebra():
+    from scripts.renderizar import _ilustracao_categoria
+    svg = str(_ilustracao_categoria(None, None))
+    assert svg.startswith("<svg")
+
+
+def test_ilustracao_categoria_cobre_todas_as_categorias_validas():
+    import xml.etree.ElementTree as ET
+
+    from scripts.classificar import CATEGORIAS_VALIDAS
+    from scripts.renderizar import _ilustracao_categoria
+    vistos = set()
+    for cat in CATEGORIAS_VALIDAS:
+        svg = str(_ilustracao_categoria(cat, "MPRR"))
+        ET.fromstring(svg)   # XML bem-formado
+        vistos.add(svg)
+    # categorias específicas geram ilustrações distintas ("Outros" = fallback)
+    assert len(vistos) >= 8
