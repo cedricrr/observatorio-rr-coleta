@@ -59,10 +59,12 @@ Cadeia de estágios isolados e testáveis, do PDF ao HTML:
 ### Polimento de UI/UX do índice (2026-06-09)
 Cinco correções no template da home (`indice.html.j2`) + filtros, via TDD estrito (um ciclo por problema):
 - **Datas formatadas**: novo global Jinja `formatar_data` (`_formatar_data_abrev` em `renderizar.py`) converte ISO → `08 JUN 2026`; hero/cards não vazam mais ISO cru. Masthead segue no formato longo (`_formatar_data_pt_br`).
-- **Coluna direita útil**: a `.lado-direito` (antes `<div>` vazio com `border-left` morto em ≥1024px) virou índice "Nesta edição" — manchetes + órgão dos destaques, linkando ao mesmo `pdf_url` do card. Sem destaques, a coluna não renderiza.
+- **Coluna direita**: a `.lado-direito` (antes `<div>` vazio com `border-left` morto em ≥1024px) recebeu conteúdo útil (ver iteração abaixo).
 - **Acessibilidade**: `<main id="conteudo">`, skip link e `:focus-visible` em links/botões.
 - **Trava editorial**: hero e loops só renderizam itens com `publicar | default(true)` — defesa em profundidade contra item sensível que escape do classificador.
 - **CSS**: `line-clamp` padrão ao lado de `-webkit-line-clamp`, clamp de 4 linhas na `.lede`, transições de cor no hover.
+
+**Iteração da coluna direita (mesmo dia):** a 1ª tentativa preencheu a `.lado-direito` com um índice "Nesta edição" (manchetes dos destaques), mas ficou **redundante** com os cards. Substituída por **ilustração SVG temática inline** (`_ilustracao_categoria` em `renderizar.py`, global `ilustracao_categoria`): 9 motivos line-art escolhidos pela `categoria` do hero (contratos→R$, pessoal→figuras, investigação→lupa, atos→§, designação→medalha, concurso→checklist, cessão→setas, judicial→balança, outros→jornal) com cor de acento por órgão (MPRR vermelho `#c8102e`, TJRR azul `#1d4e89`). Determinística, sem dependências novas (`Markup` do markupsafe), acompanha o hero a cada publicação.
 
 ---
 
