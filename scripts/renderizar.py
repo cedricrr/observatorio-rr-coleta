@@ -112,11 +112,13 @@ _MOTIVOS_CATEGORIA = {
         '<line x1="98" y1="104" x2="114" y2="104" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
     ),
     "Cessões e cooperações": (
-        '<path d="M68 80 a36 36 0 0 1 62 -8" fill="none" stroke="{ink}" stroke-width="4" stroke-linecap="round"/>'
-        '<path d="M130 72 l3 -16 -16 5" fill="none" stroke="{ink}" stroke-width="4"'
+        '<path d="M62 92 A 44 44 0 0 1 138 84" fill="none" stroke="{ink}"'
+        ' stroke-width="4" stroke-linecap="round"/>'
+        '<path d="M138 84 l-3 -15 16 7" fill="none" stroke="{ink}" stroke-width="4"'
         ' stroke-linecap="round" stroke-linejoin="round"/>'
-        '<path d="M132 120 a36 36 0 0 1 -62 8" fill="none" stroke="{accent}" stroke-width="4" stroke-linecap="round"/>'
-        '<path d="M70 128 l-3 16 16 -5" fill="none" stroke="{accent}" stroke-width="4"'
+        '<path d="M138 108 A 44 44 0 0 1 62 116" fill="none" stroke="{accent}"'
+        ' stroke-width="4" stroke-linecap="round"/>'
+        '<path d="M62 116 l3 15 -16 -7" fill="none" stroke="{accent}" stroke-width="4"'
         ' stroke-linecap="round" stroke-linejoin="round"/>'
     ),
     "Decisões judiciais relevantes": (
