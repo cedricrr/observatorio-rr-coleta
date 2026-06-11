@@ -79,6 +79,9 @@ def test_buscar_sem_sessao_retorna_parcial(client, resposta_solr, mocker):
     assert params["group"] == "true"
     assert params["group.field"] == "chave_pdf"
     assert params["hl"] == "true"
+    # busca de nomes: TODOS os termos são exigidos — sem isso, "de"/"da"
+    # casam com o acervo inteiro e as contagens do gate viram ruído
+    assert params["mm"] == "100%"
 
 
 def test_buscar_resultado_montado_com_url_e_trecho(client, resposta_solr, mocker):

@@ -52,6 +52,9 @@ def _montar_params(q: str, completo: bool, offset: int) -> dict:
         "defType": "edismax",
         "qf": "texto",
         "pf": "texto",
+        # nomes: todos os termos obrigatórios — OR default faria "de"/"da"
+        # casarem o acervo inteiro e inflarem as contagens do freemium
+        "mm": "100%",
         "sort": "data_edicao desc",
         "rows": RESULTADOS_PAGINA if completo else RESULTADOS_PARCIAL,
         "start": offset if completo else 0,
