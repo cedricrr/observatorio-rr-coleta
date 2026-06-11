@@ -5,6 +5,21 @@ from __future__ import annotations
 import fitz
 
 
+def extrair_paginas(pdf_bytes: bytes) -> list[str]:
+    """Extrai o texto de um PDF, uma string por página (índice 0 = página 1).
+
+    Páginas em branco viram strings vazias. Acentuação e caracteres
+    unicode são preservados.
+
+    Levanta exceção se os bytes não formarem um PDF válido.
+    """
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        return [page.get_text() for page in doc]
+    finally:
+        doc.close()
+
+
 def extrair_texto(pdf_bytes: bytes) -> str:
     """Extrai texto de um PDF e retorna paginado.
 
@@ -21,11 +36,7 @@ def extrair_texto(pdf_bytes: bytes) -> str:
 
     Levanta exceção se os bytes não formarem um PDF válido.
     """
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    try:
-        partes: list[str] = []
-        for n, page in enumerate(doc, start=1):
-            partes.append(f"===PAGE {n}===\n{page.get_text()}\n")
-        return "".join(partes)
-    finally:
-        doc.close()
+    return "".join(
+        f"===PAGE {n}===\n{texto}\n"
+        for n, texto in enumerate(extrair_paginas(pdf_bytes), start=1)
+    )

@@ -1,9 +1,9 @@
-"""Testes do scripts.extrair_texto (fase RED — implementação ainda não existe)."""
+"""Testes do scripts.extrair_texto."""
 
 import fitz
 import pytest
 
-from scripts.extrair_texto import extrair_texto
+from scripts.extrair_texto import extrair_paginas, extrair_texto
 
 
 def _pdf_com_texto(*paginas_texto: str) -> bytes:
@@ -91,3 +91,52 @@ def test_pdf_grande_paginas_numeradas_corretamente():
     assert "===PAGE 10===" in resultado
     assert "===PAGE 11===" not in resultado
     assert "===PAGE 0===" not in resultado
+
+
+def test_extrair_paginas_retorna_lista_por_pagina():
+    pdf_bytes = _pdf_com_texto("primeira", "segunda")
+
+    paginas = extrair_paginas(pdf_bytes)
+
+    assert len(paginas) == 2
+    assert "primeira" in paginas[0]
+    assert "segunda" in paginas[1]
+
+
+def test_extrair_paginas_pagina_em_branco_vira_string_vazia():
+    doc = fitz.open()
+    doc.new_page()  # em branco
+    page2 = doc.new_page()
+    page2.insert_text((50, 100), "página dois")
+    pdf_bytes = doc.tobytes()
+
+    paginas = extrair_paginas(pdf_bytes)
+
+    assert len(paginas) == 2
+    assert paginas[0].strip() == ""
+    assert "página dois" in paginas[1]
+
+
+def test_extrair_paginas_preserva_unicode():
+    pdf_bytes = _pdf_com_texto("Diário Eletrônico — São Luiz do Anauá")
+
+    paginas = extrair_paginas(pdf_bytes)
+
+    assert "Diário" in paginas[0]
+    assert "Anauá" in paginas[0]
+
+
+def test_extrair_paginas_bytes_invalidos_levanta_excecao():
+    with pytest.raises(Exception):
+        extrair_paginas(b"isso nao eh um PDF")
+
+
+def test_extrair_texto_equivale_a_join_de_extrair_paginas():
+    pdf_bytes = _pdf_com_texto("um", "dois", "três")
+
+    paginas = extrair_paginas(pdf_bytes)
+    esperado = "".join(
+        f"===PAGE {n}===\n{texto}\n" for n, texto in enumerate(paginas, start=1)
+    )
+
+    assert extrair_texto(pdf_bytes) == esperado
