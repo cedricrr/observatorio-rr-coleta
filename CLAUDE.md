@@ -132,6 +132,8 @@ Busca textual pública (caso de uso: nomes de pessoas) com captura de leads. Arq
 
 O índice Solr é **derivado e reconstruível** do `texto/` no R2 — mesma filosofia do sitemap/dedupe. PII de leads nunca vai pro R2 público nem pro git.
 
+**Em produção desde 2026-06-11**: acervo completo indexado (2.226 edições / ~92,5k páginas); API em `https://api-production-160d.up.railway.app` (projeto Railway `observatorio-busca`); página pública `jornal/busca.html` + painel com estatísticas na home (ambos condicionais à env `SEARCH_API_URL`, padrão do `CF_ANALYTICS_TOKEN`). A indexação diária roda nos 3 jobs do Actions via `scripts/indexar_diaria.py` (step pula com aviso se o secret não existir). Armadilhas Railway resolvidas: private networking é IPv6-only (`SOLR_JETTY_HOST="::"`); volumes montam como root (`RAILWAY_RUN_UID=0` + `railway-entrypoint.sh` rebaixa p/ uid 8983); `railway up` usa o diretório LINKADO como raiz de build — `search/solr` e `search/api` têm links próprios (deploy de dentro deles). Busca usa edismax `mm=100%` (todos os termos obrigatórios) — sem isso "de"/"da" casam o acervo inteiro.
+
 ## Convenções e armadilhas
 
 - **Datas**: sempre use `data_edicao`/`start` como fonte da data. No MPRR algumas edições têm **ano errado no título** — nunca derive a data do título.
