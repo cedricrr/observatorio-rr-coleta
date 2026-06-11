@@ -38,6 +38,10 @@ Política editorial: a **coleta** não faz triagem (baixa tudo). A **classifica�
 .venv/bin/python -m scripts.backfill --fonte mprr --anos 2024,2023 --retomar
 .venv/bin/python -m scripts.backfill --fonte tjrr --de 2024-01-01 --ate 2024-12-31 --somente-dias-uteis
 
+# Cache de extração de texto no R2 (texto/ — base do índice de busca)
+.venv/bin/python -m scripts.cache_texto --backfill --orgao todas --retomar
+.venv/bin/python -m scripts.cache_texto --backfill --orgao mprr --dry-run
+
 # Migração de domínio público (one-shot do cutover p/ observatoriorr.com.br)
 .venv/bin/python -m scripts.migrar_dominio --dominio-antigo <r2.dev> --dominio-novo <novo> --dry-run
 ```
@@ -114,6 +118,15 @@ Convenções que são contrato:
 - O checkpoint persiste após cada item e em `try/finally` — crashes preservam progresso; `--retomar` continua.
 
 `--somente-dias-uteis` só pula sáb/dom — **não conhece feriados** nem recesso forense (jul–ago pode ser ~5 semanas sem diário no TJRR).
+
+## Busca (`search/` + `scripts/cache_texto.py`)
+
+Busca textual pública (caso de uso: nomes de pessoas) com captura de leads. Arquitetura em duas partes:
+
+- **`scripts/cache_texto.py`** (neste pacote): grava `texto/{chave do pdf}.json` no R2 com o texto integral **por página** (schema `versao: 1` — contrato com a API; campos: orgao, data_edicao, numero, chave_pdf, sha256_pdf, total_paginas, paginas_vazias, paginas[{n, texto}]). Imutável, dedupe via `r2.existe`, checkpoint reutilizado de `backfill.py` (escopo `texto-<orgao>`). `paginas_vazias` sinaliza PDF escaneado sem camada de texto. A busca indexa o texto integral porque os `PADROES_*` de `segmentar.py` cobrem só 3 tipos de matéria por órgão.
+- **`search/`** (subprojeto com venv/pyproject próprios — deps FastAPI NÃO entram no venv do coletor): Solr 9 (core `diarios`, 1 doc por página, `id={chave_pdf}#{pagina}`, analyzer ICUFolding SEM stemming) + API FastAPI (`/buscar` freemium com token itsdangerous em `X-Sessao`; `/leads` grava PII só no Postgres; `/indexar` Bearer `SEARCH_API_TOKEN`; `/health`). Dev local: `cd search && docker compose up`. Testes: `cd search/api && .venv/bin/python -m pytest`. Deploy: Railway (Solr privado + api pública). Ver `search/README.md`.
+
+O índice Solr é **derivado e reconstruível** do `texto/` no R2 — mesma filosofia do sitemap/dedupe. PII de leads nunca vai pro R2 público nem pro git.
 
 ## Convenções e armadilhas
 

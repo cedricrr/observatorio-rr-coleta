@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Core `diarios`: um documento por PÁGINA de edição.
+  id = {chave_pdf}#{pagina} — reindexação é overwrite (idempotente).
+
+  `text_pt_nomes` NÃO usa stemming: o caso de uso principal é busca por
+  nomes de pessoas, e stemming pt-BR gera falsos positivos. ICUFolding
+  cobre o que importa (acentos + caixa: "José" == "jose" == "JOSÉ").
+-->
+<schema name="diarios" version="1.6">
+  <uniqueKey>id</uniqueKey>
+
+  <field name="id" type="string" indexed="true" stored="true" required="true"/>
+  <field name="_version_" type="plong" indexed="false" stored="false"/>
+
+  <field name="orgao" type="string" indexed="true" stored="true"/>
+  <field name="data_edicao" type="pdate" indexed="true" stored="true"/>
+  <field name="numero" type="pint" indexed="true" stored="true"/>
+  <field name="pagina" type="pint" indexed="true" stored="true"/>
+  <field name="chave_pdf" type="string" indexed="true" stored="true"/>
+  <field name="texto" type="text_pt_nomes" indexed="true" stored="true"/>
+
+  <fieldType name="string" class="solr.StrField" sortMissingLast="true" docValues="true"/>
+  <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
+  <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
+  <fieldType name="pdate" class="solr.DatePointField" docValues="true"/>
+
+  <fieldType name="text_pt_nomes" class="solr.TextField" positionIncrementGap="100">
+    <analyzer>
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.ICUFoldingFilterFactory"/>
+    </analyzer>
+  </fieldType>
+</schema>
