@@ -197,6 +197,34 @@ def agrupar_diarios_por_ano(edicoes: list[dict]) -> list[dict]:
     ]
 
 
+def _formatar_milhar(n: int) -> str:
+    """Inteiro com separador de milhar pt-BR: 1250 → '1.250'."""
+    return f"{n:,}".replace(",", ".")
+
+
+def resumo_acervo(diarios_dir: Path) -> list[dict]:
+    """Estatísticas do acervo por órgão para o painel de busca da home.
+
+    [{orgao, total, total_formatado, ano_min, ano_max}, ...] na ordem
+    MPRR, TJRR. Fonte sem edições é omitida. Mesma fonte de dados das
+    páginas de diários (JSONs locais via enumerar_diarios_fonte).
+    """
+    resumo: list[dict] = []
+    for fonte in ("mprr", "tjrr"):
+        edicoes = enumerar_diarios_fonte(fonte, diarios_dir)
+        if not edicoes:
+            continue
+        anos = [e["data_edicao"].year for e in edicoes]
+        resumo.append({
+            "orgao": _META_FONTE[fonte]["nome"],
+            "total": len(edicoes),
+            "total_formatado": _formatar_milhar(len(edicoes)),
+            "ano_min": min(anos),
+            "ano_max": max(anos),
+        })
+    return resumo
+
+
 def _url_pagina_diarios(fonte: str, public_domain: str | None) -> str:
     """URL da página de diários de uma fonte (absoluta se houver domínio)."""
     chave = CHAVE_DIARIOS[fonte]
@@ -324,6 +352,7 @@ def gerar_indice(
         hero, destaques, _ = agregar_destaques_recentes(datas, r2)
 
     data_ultima = _formatar_data_pt_br(datas[0]) if datas else None
+    acervo = resumo_acervo(diarios_dir) if _url_api_busca() else []
     template = _env.get_template("indice.html.j2")
     return template.render(
         hero=hero,
@@ -334,6 +363,8 @@ def gerar_indice(
         url_diarios_tjrr=_url_pagina_diarios("tjrr", public_domain),
         url_sobre=_url_sobre(public_domain),
         url_busca=_url_busca(public_domain) if _url_api_busca() else None,
+        acervo=acervo,
+        ano_inicio=min((f["ano_min"] for f in acervo), default=None),
         # Canonical da home é a RAIZ do domínio: a Transform Rule do
         # Cloudflare serve / a partir de jornal/index.html.
         url_canonica=f"https://{public_domain}/" if public_domain else None,

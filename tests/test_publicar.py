@@ -1351,3 +1351,76 @@ def test_publicar_tudo_publica_busca_quando_configurada(
 
     chaves = [c.args[1] for c in mock_r2.upload.call_args_list]
     assert "jornal/busca.html" in chaves
+
+
+# =============================================================
+# Painel de busca na home (resumo do acervo)
+# =============================================================
+
+
+def test_formatar_milhar_pt_br():
+    from scripts.publicar import _formatar_milhar
+    assert _formatar_milhar(976) == "976"
+    assert _formatar_milhar(1250) == "1.250"
+    assert _formatar_milhar(0) == "0"
+
+
+def test_resumo_acervo_totais_e_anos_por_orgao(tmp_path):
+    from scripts.publicar import resumo_acervo
+    _criar_jsons_completos(tmp_path, {
+        "mprr": [
+            _reg("2021-03-01", numero=1),
+            _reg("2024-06-10", numero=2),
+            _reg("2026-01-05", numero=3),
+        ],
+        "tjrr": [_reg("2022-08-15", fonte="tjrr")],
+    })
+
+    acervo = resumo_acervo(tmp_path)
+
+    assert acervo == [
+        {
+            "orgao": "MPRR", "total": 3, "total_formatado": "3",
+            "ano_min": 2021, "ano_max": 2026,
+        },
+        {
+            "orgao": "TJRR", "total": 1, "total_formatado": "1",
+            "ano_min": 2022, "ano_max": 2022,
+        },
+    ]
+
+
+def test_resumo_acervo_omite_fonte_sem_edicoes_e_dir_vazio(tmp_path):
+    from scripts.publicar import resumo_acervo
+    assert resumo_acervo(tmp_path) == []
+
+    _criar_jsons_completos(tmp_path, {"tjrr": [_reg("2023-02-01", fonte="tjrr")]})
+    acervo = resumo_acervo(tmp_path)
+    assert [f["orgao"] for f in acervo] == ["TJRR"]
+
+
+def test_gerar_indice_painel_busca_com_estatisticas(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEARCH_API_URL", "https://api.example")
+    _criar_jsons_completos(tmp_path, {
+        "mprr": [_reg("2021-03-01", numero=1), _reg("2026-01-05", numero=2)],
+        "tjrr": [_reg("2022-08-15", fonte="tjrr")],
+    })
+
+    html = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
+
+    assert 'class="painel-busca"' in html
+    assert 'href="https://pub-xxx.r2.dev/jornal/busca.html"' in html
+    assert "MPRR" in html and "2021–2026" in html
+    assert "2022–2022" in html
+    assert "desde 2021" in html
+    # o botão simples antigo saiu de cena
+    assert ">Buscar nos diários</a>" not in html
+
+
+def test_gerar_indice_sem_env_nao_tem_painel(tmp_path, monkeypatch):
+    monkeypatch.delenv("SEARCH_API_URL", raising=False)
+    _criar_jsons_completos(tmp_path, {"mprr": [_reg("2024-01-10", numero=1)]})
+
+    html = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
+
+    assert 'class="painel-busca"' not in html  # CSS fica, o elemento não

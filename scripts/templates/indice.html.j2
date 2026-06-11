@@ -317,6 +317,52 @@
             border-left-color: var(--cor-rule);
         }
 
+        nav.nav-diarios .painel-busca {
+            grid-column: 1 / -1;
+            display: block;
+            text-decoration: none;
+            color: var(--cor-primaria);
+            border: 1px solid var(--cor-primaria);
+            border-left: 4px solid var(--cor-rule);
+            padding: 1.1rem 1.2rem;
+            transition: color .15s ease, background-color .15s ease;
+        }
+
+        nav.nav-diarios .painel-busca .titulo {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        nav.nav-diarios .painel-busca .convite {
+            font-size: 0.9rem;
+            color: var(--cor-secundaria);
+            margin-top: 0.2rem;
+        }
+
+        nav.nav-diarios .painel-busca .estatisticas {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem 1.5rem;
+            margin-top: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--cor-secundaria);
+        }
+
+        nav.nav-diarios .painel-busca:hover {
+            background: var(--cor-primaria);
+            color: var(--cor-fundo);
+        }
+
+        nav.nav-diarios .painel-busca:hover .convite,
+        nav.nav-diarios .painel-busca:hover .estatisticas {
+            color: var(--cor-fundo);
+        }
+
         /* ============ EMPTY ============ */
         .empty-state {
             text-align: center;
@@ -460,7 +506,17 @@
 
         <nav class="nav-diarios">
             {% if url_busca %}
-            <a class="botao-diarios" href="{{ url_busca }}">Buscar nos diários</a>
+            <a class="painel-busca" href="{{ url_busca }}">
+                <p class="titulo">Busca nos Diários</p>
+                <p class="convite">Pesquise nomes e termos em todo o acervo{% if ano_inicio %} desde {{ ano_inicio }}{% endif %}.</p>
+                {% if acervo %}
+                <ul class="estatisticas">
+                    {% for f in acervo %}
+                    <li><strong>{{ f.orgao }}</strong> · {{ f.total_formatado }} diários · {{ f.ano_min }}–{{ f.ano_max }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </a>
             {% endif %}
             <a class="botao-diarios" href="{{ url_diarios_mprr }}">Diários do MPRR</a>
             <a class="botao-diarios" href="{{ url_diarios_tjrr }}">Diários do TJRR</a>
