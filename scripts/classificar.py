@@ -21,6 +21,11 @@ CATEGORIAS_VALIDAS: frozenset[str] = frozenset({
     "Outros",
 })
 
+# Sentinela da regra de proteção a menores (incidente 2026-06-10, ECA
+# art. 143). NÃO é categoria editorial (fica fora de CATEGORIAS_VALIDAS:
+# nunca é renderizada, pois relevante é forçado a False).
+CATEGORIA_PROTECAO_MENOR = "protecao_menor"
+
 
 SYSTEM_PROMPT = """Você é o classificador editorial do Observatório Roraima.
 
@@ -31,6 +36,38 @@ e cívico para a população local.
 
 Sua tarefa é classificar uma matéria isolada de um diário oficial,
 extraindo informações estruturadas para publicação editorial.
+
+REGRA DE PROTEÇÃO A MENORES — PRIORIDADE MÁXIMA
+
+Se o texto da matéria envolver qualquer um dos seguintes elementos,
+marque relevante=False SEMPRE, sem exceção, independente de qualquer
+outro critério editorial:
+
+- Crimes sexuais contra crianças ou adolescentes: estupro de
+  vulnerável, abuso sexual infantil, exploração sexual, pornografia
+  infantil, importunação sexual de menor.
+- Violência física contra crianças ou adolescentes em contexto
+  familiar ou institucional.
+- Uso de iniciais com pontos pelo MP (padrão "X. da S. L." ou
+  "X. K." ou "X. Y. Z.") — esse formato indica anonimização do
+  autor do diário, e o classificador NÃO deve desfazer a anonimização
+  expandindo contexto.
+- Menção de criança/adolescente vítima identificável por idade exata
+  + comarca/município pequeno (Bonfim, Pacaraima, Mucajaí, São Luiz,
+  Caracaraí, Rorainópolis, Cantá, Iracema, Caroebi, Normandia,
+  Uiramutã, Amajari, Alto Alegre, Bonfim).
+- Adoção, destituição de poder familiar, guarda envolvendo menor
+  quando o nome ou iniciais da criança/adolescente estiverem no texto.
+- Processos em segredo de justiça (mesmo que parcialmente vazados no
+  diário oficial).
+
+Esta regra TEM PRECEDÊNCIA sobre todas as outras. Se a matéria for
+jornalisticamente relevante MAS envolver os elementos acima, ainda
+assim marque relevante=False. A regra existe para cumprir o art. 143
+do ECA (Lei 8.069/90).
+
+Para essas matérias, NÃO gere manchete, resumo ou tags. Apenas marque
+relevante=False e categoria="protecao_menor".
 
 CATEGORIAS DISPONÍVEIS (escolha exatamente uma):
 
@@ -215,6 +252,23 @@ def classificar_materia(
     user_prompt = _montar_user_prompt(materia)
     resposta = cliente.classificar(user_prompt, system=SYSTEM_PROMPT)
     dados = _parsear_resposta_json(resposta)
+
+    # Regra de proteção a menores (ECA art. 143): a resposta pode vir só
+    # com relevante+categoria (o prompt manda NÃO gerar manchete/resumo/
+    # tags), então não passa pela validação de schema completo. O retorno
+    # é endurecido aqui de forma determinística: relevante=False e campos
+    # editoriais vazios, mesmo que o modelo tenha preenchido algum.
+    if dados.get("categoria") == CATEGORIA_PROTECAO_MENOR:
+        return replace(
+            materia,
+            relevante=False,
+            categoria=CATEGORIA_PROTECAO_MENOR,
+            manchete="",
+            resumo="",
+            valor_rs=None,
+            tags=[],
+        )
+
     _validar_dados_classificacao(dados)
 
     return replace(

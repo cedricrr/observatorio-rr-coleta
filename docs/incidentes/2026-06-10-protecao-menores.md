@@ -61,9 +61,37 @@ Observações:
 - O cache do índice é `max-age=300`; a verificação foi feita após o
   upload e já retornou limpa.
 
-## Fase 2 — Regra no classificador (prevenção sistêmica)
+## Fase 2 — Regra no classificador (prevenção sistêmica) (2026-06-10)
 
-_Pendente — aguardando Gate 1._
+O que foi feito em `scripts/classificar.py`:
+
+1. **SYSTEM_PROMPT**: nova seção "REGRA DE PROTEÇÃO A MENORES —
+   PRIORIDADE MÁXIMA" inserida **antes** da seção de categorias, com
+   precedência explícita sobre os critérios editoriais (texto literal
+   definido pelo editor). Cobre crimes sexuais contra menores, violência
+   física, padrão de iniciais anonimizadas pelo MP, vítima identificável
+   por idade + município pequeno, adoção/destituição/guarda com
+   nome/iniciais do menor e segredo de justiça. Para esses casos o modelo
+   é instruído a responder apenas `relevante=False` e
+   `categoria="protecao_menor"`, sem gerar manchete/resumo/tags.
+2. **Nova sentinela `CATEGORIA_PROTECAO_MENOR`** (fora de
+   `CATEGORIAS_VALIDAS` — não é categoria editorial e nunca renderiza).
+   Sem isso a validação rejeitaria a resposta da regra com `ValueError` e
+   a matéria seria pulada sem registro estruturado.
+3. **Endurecimento determinístico**: quando a resposta vem com
+   `categoria="protecao_menor"`, o código força `relevante=False` e zera
+   manchete/resumo/tags/valor mesmo que o modelo os tenha preenchido ou
+   devolvido `relevante=true`.
+
+Testes: novo "GRUPO G — Proteção a menores" em `tests/test_classificar.py`
+(7 testes: os 5 cenários definidos no plano + posição/conteúdo da regra no
+prompt + sentinela fora das categorias editoriais). Como o cliente é
+mockado, o grupo valida o prompt e o contrato/endurecimento do pipeline —
+a camada que não depende do RLM acertar é a Fase 3. Suíte completa verde
+(531 passed) e ruff limpo.
+
+Limite conhecido: a regra do prompt depende do modelo obedecer. A Fase 3
+adiciona o validador determinístico independente do RLM.
 
 ## Fase 3 — Defesa em profundidade (validador independente)
 

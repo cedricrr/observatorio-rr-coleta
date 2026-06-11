@@ -8,7 +8,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from scripts.classificar import (
+    CATEGORIA_PROTECAO_MENOR,
     CATEGORIAS_VALIDAS,
+    SYSTEM_PROMPT,
     classificar_materia,
 )
 from scripts.cliente_anthropic import ClienteAnthropic
@@ -400,3 +402,144 @@ def test_classificar_fence_no_meio_nao_atrapalha_se_json_valido():
     documentar limite.
     """
     pass
+
+
+# ---------------------------------------------------------------------------
+# GRUPO G — Proteção a menores (incidente 2026-06-10, ECA art. 143)
+#
+# O cliente é mockado, então estes testes NÃO validam o comportamento do
+# RLM em si — validam (a) que a regra está no SYSTEM_PROMPT, antes das
+# categorias; (b) que o pipeline ACEITA a resposta mínima da regra
+# (categoria "protecao_menor" sem manchete/resumo/tags), que antes era
+# rejeitada pela validação; (c) o endurecimento determinístico: categoria
+# "protecao_menor" força relevante=False e zera os campos editoriais,
+# mesmo que o modelo devolva relevante=true ou manchete preenchida.
+# A camada que não depende do RLM acertar é a Fase 3 (validador_sensivel).
+# ---------------------------------------------------------------------------
+
+def _resposta_protecao_minima() -> dict:
+    """Resposta mínima prevista pela regra: só relevante + categoria."""
+    return {"relevante": False, "categoria": "protecao_menor"}
+
+
+def test_protecao_menor_estupro_vulneravel_idade_comarca():
+    """Matéria de estupro de vulnerável + idade + comarca → relevante=False."""
+    cliente = _cliente_mock_com_resposta(_resposta_protecao_minima())
+    materia_in = _materia(
+        tipo="PORTARIA",
+        texto=(
+            "**EXTRATO DA PORTARIA DE INSTAURAÇÃO PA SIMP Nº 000578-090/2025**\n"
+            "Apurar situação de vulnerabilidade de adolescente de 13 anos "
+            "grávida em decorrência de suposto estupro de vulnerável. "
+            "Promotoria de Justiça da Comarca de Bonfim."
+        ),
+    )
+
+    materia_out = classificar_materia(materia_in, cliente)
+
+    assert materia_out.relevante is False
+    assert materia_out.categoria == CATEGORIA_PROTECAO_MENOR
+    assert not materia_out.manchete
+    assert not materia_out.resumo
+    assert materia_out.tags == []
+
+
+def test_protecao_menor_adolescente_gravida():
+    """Mesmo se o modelo devolver relevante=true com categoria protecao_menor,
+    o endurecimento determinístico força relevante=False e zera editorial."""
+    dados = {
+        "relevante": True,
+        "categoria": "protecao_menor",
+        "manchete": "MP acompanha adolescente de 13 anos grávida",
+        "resumo": "Procedimento sobre adolescente grávida.",
+        "valor_rs": None,
+        "tags": ["adolescente"],
+    }
+    cliente = _cliente_mock_com_resposta(dados)
+    materia_in = _materia(
+        texto="Acompanhar adolescente de 13 anos grávida na comarca.",
+    )
+
+    materia_out = classificar_materia(materia_in, cliente)
+
+    assert materia_out.relevante is False
+    assert materia_out.categoria == CATEGORIA_PROTECAO_MENOR
+    assert not materia_out.manchete
+    assert not materia_out.resumo
+    assert materia_out.tags == []
+    assert materia_out.valor_rs is None
+
+
+def test_protecao_menor_iniciais_anonimizadas():
+    """Matéria com iniciais anonimizadas pelo MP ("X. da S. L.")."""
+    cliente = _cliente_mock_com_resposta(_resposta_protecao_minima())
+    materia_in = _materia(
+        texto=(
+            "Procedimento administrativo em favor da criança J. da S. L., "
+            "nascida em 2019, no município de Pacaraima."
+        ),
+    )
+
+    materia_out = classificar_materia(materia_in, cliente)
+
+    assert materia_out.relevante is False
+    assert materia_out.categoria == CATEGORIA_PROTECAO_MENOR
+
+
+def test_protecao_menor_adocao_com_iniciais():
+    """Adoção/destituição com iniciais do menor no texto."""
+    cliente = _cliente_mock_com_resposta(_resposta_protecao_minima())
+    materia_in = _materia(
+        orgao="TJRR",
+        tipo="PORTARIA_ITEM",
+        texto=(
+            "Processo de adoção e destituição do poder familiar "
+            "envolvendo o menor M. K., comarca de Rorainópolis."
+        ),
+    )
+
+    materia_out = classificar_materia(materia_in, cliente)
+
+    assert materia_out.relevante is False
+    assert materia_out.categoria == CATEGORIA_PROTECAO_MENOR
+    assert not materia_out.manchete
+
+
+def test_protecao_menor_controle_contrato_normal_segue_relevante():
+    """Controle: matéria de contrato comum não é afetada pela regra."""
+    dados = {
+        "relevante": True,
+        "categoria": "Contratos e licitações",
+        "manchete": "MPRR contrata manutenção predial por R$ 250 mil",
+        "resumo": "Contrato de manutenção predial firmado pelo MPRR.",
+        "valor_rs": 250000.0,
+        "tags": ["contrato", "manutenção"],
+    }
+    cliente = _cliente_mock_com_resposta(dados)
+    materia_in = _materia(
+        texto="EXTRATO DE CONTRATO N. 30/2026 — manutenção predial, R$ 250.000,00",
+    )
+
+    materia_out = classificar_materia(materia_in, cliente)
+
+    assert materia_out.relevante is True
+    assert materia_out.categoria == "Contratos e licitações"
+    assert materia_out.manchete == "MPRR contrata manutenção predial por R$ 250 mil"
+
+
+def test_system_prompt_tem_regra_de_protecao_antes_das_categorias():
+    """A regra de proteção precisa existir e vir ANTES das categorias."""
+    pos_regra = SYSTEM_PROMPT.find("REGRA DE PROTEÇÃO A MENORES — PRIORIDADE MÁXIMA")
+    pos_categorias = SYSTEM_PROMPT.find("CATEGORIAS DISPONÍVEIS")
+    assert pos_regra != -1
+    assert pos_categorias != -1
+    assert pos_regra < pos_categorias
+    assert "art. 143" in SYSTEM_PROMPT
+    assert 'categoria="protecao_menor"' in SYSTEM_PROMPT
+
+
+def test_categoria_protecao_menor_nao_entra_nas_categorias_editoriais():
+    """protecao_menor é sentinela de despublicação, não categoria editorial
+    (nunca é renderizada — relevante é sempre False)."""
+    assert CATEGORIA_PROTECAO_MENOR == "protecao_menor"
+    assert CATEGORIA_PROTECAO_MENOR not in CATEGORIAS_VALIDAS
