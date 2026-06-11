@@ -459,6 +459,9 @@
         {% endif %}
 
         <nav class="nav-diarios">
+            {% if url_busca %}
+            <a class="botao-diarios" href="{{ url_busca }}">Buscar nos diários</a>
+            {% endif %}
             <a class="botao-diarios" href="{{ url_diarios_mprr }}">Diários do MPRR</a>
             <a class="botao-diarios" href="{{ url_diarios_tjrr }}">Diários do TJRR</a>
         </nav>

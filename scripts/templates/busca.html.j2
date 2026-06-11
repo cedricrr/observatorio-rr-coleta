@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Busca nos Diários · Observatório Roraima</title>
+    <meta name="description" content="Busque nomes e termos em todos os diários oficiais do MPRR e do TJRR arquivados pelo Observatório Roraima desde 2021.">
+    {% if url_canonica %}
+    <link rel="canonical" href="{{ url_canonica }}">
+    <meta property="og:title" content="Busca nos Diários · Observatório Roraima">
+    <meta property="og:description" content="Busque nomes e termos em todos os diários oficiais do MPRR e do TJRR desde 2021.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url_canonica }}">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:site_name" content="Observatório Roraima">
+    <meta name="twitter:card" content="summary">
+    {% endif %}
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23c8102e'/%3E%3Ctext x='16' y='24' font-family='Georgia,serif' font-size='22' font-weight='bold' text-anchor='middle' fill='%23fafafa'%3EO%3C/text%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,400;9..144,0,600;9..144,0,700;9..144,1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cor-primaria: #1a1a1a;
+            --cor-texto: #2c2c2c;
+            --cor-secundaria: #666;
+            --cor-fundo: #fafafa;
+            --cor-divisa: #e0e0e0;
+            --cor-rule: #c8102e;
+            --cor-tjrr: #1d4e89;
+            --max-largura: 760px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--cor-fundo);
+            color: var(--cor-texto);
+            line-height: 1.5;
+            padding: 0 1rem;
+        }
+
+        a { color: inherit; }
+
+        .skip-link {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            background: var(--cor-primaria);
+            color: var(--cor-fundo);
+            padding: 0.6rem 1rem;
+            font-size: 0.85rem;
+            z-index: 100;
+        }
+
+        .skip-link:focus { left: 0.5rem; top: 0.5rem; }
+
+        .pagina {
+            max-width: var(--max-largura);
+            margin: 0 auto;
+            padding: 2rem 0 4rem;
+        }
+
+        header.masthead {
+            text-align: center;
+            border-bottom: 3px double var(--cor-primaria);
+            padding-bottom: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .masthead .kicker {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--cor-secundaria);
+            margin-bottom: 0.4rem;
+        }
+
+        .masthead h1 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--cor-primaria);
+        }
+
+        .masthead .voltar {
+            display: inline-block;
+            margin-top: 0.6rem;
+            font-size: 0.85rem;
+            color: var(--cor-secundaria);
+            text-decoration: none;
+        }
+
+        .masthead .voltar:hover { color: var(--cor-rule); }
+
+        /* ============ FORM DE BUSCA ============ */
+        #form-busca {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        #form-busca input[type="search"] {
+            flex: 1;
+            font-family: 'Inter', sans-serif;
+            font-size: 1.05rem;
+            padding: 0.75rem 1rem;
+            border: 1.5px solid var(--cor-primaria);
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        #form-busca input[type="search"]:focus {
+            outline: 2px solid var(--cor-rule);
+            outline-offset: 1px;
+        }
+
+        button.principal {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 0.75rem 1.4rem;
+            background: var(--cor-primaria);
+            color: var(--cor-fundo);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button.principal:hover { background: var(--cor-rule); }
+
+        .dica {
+            font-size: 0.8rem;
+            color: var(--cor-secundaria);
+            margin-bottom: 2rem;
+        }
+
+        /* ============ ESTADOS ============ */
+        .estado { margin: 2.5rem 0; text-align: center; color: var(--cor-secundaria); }
+        .oculto { display: none !important; }
+
+        #contagem {
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 1.15rem;
+            color: var(--cor-primaria);
+            margin: 1.5rem 0 1rem;
+            border-bottom: 1px solid var(--cor-divisa);
+            padding-bottom: 0.6rem;
+        }
+
+        /* ============ RESULTADOS ============ */
+        article.resultado {
+            border-bottom: 1px solid var(--cor-divisa);
+            padding: 1.1rem 0;
+        }
+
+        .resultado .meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--cor-secundaria);
+            margin-bottom: 0.45rem;
+        }
+
+        .resultado .meta .orgao {
+            font-weight: 500;
+            padding: 0.1rem 0.45rem;
+            border-radius: 3px;
+            color: #fff;
+            margin-right: 0.5rem;
+        }
+
+        .resultado .meta .orgao.mprr { background: var(--cor-rule); }
+        .resultado .meta .orgao.tjrr { background: var(--cor-tjrr); }
+
+        .resultado .trecho {
+            font-size: 0.95rem;
+            color: var(--cor-texto);
+        }
+
+        .resultado .trecho em {
+            font-style: normal;
+            font-weight: 600;
+            background: #fff3b8;
+            padding: 0 0.1rem;
+        }
+
+        .resultado .acoes { margin-top: 0.55rem; }
+
+        .resultado .acoes a {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--cor-rule);
+            text-decoration: none;
+        }
+
+        .resultado .acoes a:hover { text-decoration: underline; }
+
+        /* ============ GATE / CADASTRO ============ */
+        #gate {
+            margin: 2rem 0;
+            border: 1.5px solid var(--cor-primaria);
+            border-radius: 6px;
+            padding: 1.6rem;
+            background: #fff;
+        }
+
+        #gate h2 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 1.3rem;
+            color: var(--cor-primaria);
+            margin-bottom: 0.4rem;
+        }
+
+        #gate p.explicacao {
+            font-size: 0.9rem;
+            color: var(--cor-secundaria);
+            margin-bottom: 1.2rem;
+        }
+
+        #form-cadastro label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin: 0.9rem 0 0.25rem;
+        }
+
+        #form-cadastro input[type="email"],
+        #form-cadastro input[type="tel"] {
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--cor-divisa);
+            border-radius: 4px;
+        }
+
+        #form-cadastro .consent {
+            display: flex;
+            gap: 0.6rem;
+            align-items: flex-start;
+            margin: 1.1rem 0;
+        }
+
+        #form-cadastro .consent input { margin-top: 0.25rem; }
+
+        #form-cadastro .consent label {
+            display: inline;
+            font-weight: 400;
+            font-size: 0.82rem;
+            color: var(--cor-secundaria);
+            margin: 0;
+        }
+
+        #aviso-cadastro { font-size: 0.85rem; color: var(--cor-rule); margin-top: 0.6rem; }
+
+        #botao-mais { margin: 1.5rem auto; display: block; }
+
+        footer {
+            margin-top: 3rem;
+            border-top: 3px double var(--cor-primaria);
+            padding-top: 1rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--cor-secundaria);
+        }
+
+        @media (max-width: 600px) {
+            #form-busca { flex-direction: column; }
+            .masthead h1 { font-size: 1.7rem; }
+        }
+    </style>
+</head>
+<body>
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+    <div class="pagina">
+        <header class="masthead">
+            <p class="kicker">Observatório Roraima</p>
+            <h1>Busca nos Diários</h1>
+            <a class="voltar" href="{{ url_indice }}">← Voltar ao jornal</a>
+        </header>
+
+        <main id="conteudo">
+            <form id="form-busca" role="search">
+                <input type="search" id="campo-busca" name="q" maxlength="200" required
+                       placeholder="Nome de pessoa, empresa ou termo…"
+                       aria-label="Termo de busca">
+                <button class="principal" type="submit">Buscar</button>
+            </form>
+            <p class="dica">Busca em todas as edições do MPRR e do TJRR desde 2021. Acentos são opcionais: "José" e "jose" encontram o mesmo resultado.</p>
+
+            <div id="estado-carregando" class="estado oculto">Buscando…</div>
+            <div id="estado-vazio" class="estado oculto">Nenhuma ocorrência encontrada. Tente outra grafia ou menos palavras.</div>
+            <div id="estado-erro" class="estado oculto">Não foi possível completar a busca agora. Tente novamente em instantes.</div>
+
+            <div id="area-resultados" class="oculto">
+                <p id="contagem"></p>
+                <div id="lista-resultados"></div>
+                <button id="botao-mais" class="principal oculto" type="button">Carregar mais resultados</button>
+            </div>
+
+            <div id="gate" class="oculto">
+                <h2>Veja todas as ocorrências</h2>
+                <p class="explicacao">A lista completa é gratuita — basta deixar um e-mail para acesso e para receber novidades do Observatório.</p>
+                <form id="form-cadastro">
+                    <label for="campo-email">E-mail *</label>
+                    <input type="email" id="campo-email" name="email" required autocomplete="email">
+
+                    <label for="campo-telefone">Telefone (opcional)</label>
+                    <input type="tel" id="campo-telefone" name="telefone" maxlength="40" autocomplete="tel" placeholder="+55 95 9XXXX-XXXX">
+
+                    <div class="consent">
+                        <input type="checkbox" id="campo-consentimento" name="consentimento" required>
+                        <label for="campo-consentimento">Autorizo o uso do meu e-mail e telefone para comunicações do Observatório Roraima, nos termos da LGPD. O consentimento pode ser revogado a qualquer momento.</label>
+                    </div>
+
+                    <button class="principal" type="submit">Liberar lista completa</button>
+                    <p id="aviso-cadastro" class="oculto"></p>
+                </form>
+            </div>
+        </main>
+
+        <footer>
+            <p>Observatório Roraima · Diário editorial automatizado · <a href="{{ url_sobre }}">Sobre</a></p>
+        </footer>
+    </div>
+
+    <script>
+    (function () {
+        "use strict";
+        var API = "{{ busca_api_url }}";
+        var CHAVE_TOKEN = "obs_busca_token";
+        var consultaAtual = "";
+        var offsetAtual = 0;
+        var TAMANHO_PAGINA = 20;
+
+        var el = function (id) { return document.getElementById(id); };
+        var mostrar = function (id) { el(id).classList.remove("oculto"); };
+        var esconder = function (id) { el(id).classList.add("oculto"); };
+
+        function token() { return localStorage.getItem(CHAVE_TOKEN); }
+
+        function formatarData(iso) {
+            var p = iso.split("-");
+            return p[2] + "/" + p[1] + "/" + p[0];
+        }
+
+        function renderResultado(r) {
+            var art = document.createElement("article");
+            art.className = "resultado";
+
+            var meta = document.createElement("p");
+            meta.className = "meta";
+            var orgao = document.createElement("span");
+            orgao.className = "orgao " + r.orgao;
+            orgao.textContent = r.orgao.toUpperCase();
+            meta.appendChild(orgao);
+            var info = "Edição de " + formatarData(r.data_edicao);
+            if (r.numero) { info += " · nº " + r.numero; }
+            info += " · pág. " + r.pagina;
+            meta.appendChild(document.createTextNode(info));
+            art.appendChild(meta);
+
+            var trecho = document.createElement("p");
+            trecho.className = "trecho";
+            // único innerHTML da página: a API entrega o trecho já HTML-escapado,
+            // com apenas <em> de highlight
+            trecho.innerHTML = "… " + r.trecho_html + " …";
+            art.appendChild(trecho);
+
+            var acoes = document.createElement("p");
+            acoes.className = "acoes";
+            var link = document.createElement("a");
+            link.href = r.url_pdf;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.textContent = "Abrir o diário em PDF (pág. " + r.pagina + ") →";
+            acoes.appendChild(link);
+            art.appendChild(acoes);
+            return art;
+        }
+
+        function renderResposta(corpo, anexar) {
+            var lista = el("lista-resultados");
+            if (!anexar) { lista.textContent = ""; }
+            corpo.resultados.forEach(function (r) {
+                lista.appendChild(renderResultado(r));
+            });
+
+            if (corpo.total_diarios === 0) {
+                esconder("area-resultados");
+                esconder("gate");
+                mostrar("estado-vazio");
+                return;
+            }
+
+            var contagem = el("contagem");
+            contagem.textContent = corpo.total_ocorrencias + " ocorrência(s) em " +
+                corpo.total_diarios + " diário(s)";
+            if (corpo.parcial) {
+                contagem.textContent += " — mostrando os " + corpo.resultados.length +
+                    " mais recentes";
+            }
+            mostrar("area-resultados");
+
+            if (corpo.parcial && corpo.total_diarios > corpo.resultados.length) {
+                mostrar("gate");
+                esconder("botao-mais");
+            } else {
+                esconder("gate");
+                var exibidos = offsetAtual + corpo.resultados.length;
+                if (!corpo.parcial && exibidos < corpo.total_diarios) {
+                    mostrar("botao-mais");
+                } else {
+                    esconder("botao-mais");
+                }
+            }
+        }
+
+        function buscar(q, offset, anexar, jaTentouSemToken) {
+            esconder("estado-vazio");
+            esconder("estado-erro");
+            if (!anexar) { esconder("area-resultados"); esconder("gate"); }
+            mostrar("estado-carregando");
+
+            var headers = { "Content-Type": "application/json" };
+            var t = token();
+            if (t) { headers["X-Sessao"] = t; }
+
+            fetch(API + "/buscar", {
+                method: "POST",
+                headers: headers,
+                body: JSON.stringify({ q: q, offset: offset })
+            }).then(function (resp) {
+                if (resp.status === 401) {
+                    // sessão expirada/inválida: limpa e refaz como visitante
+                    localStorage.removeItem(CHAVE_TOKEN);
+                    if (!jaTentouSemToken) { buscar(q, 0, false, true); }
+                    return null;
+                }
+                if (!resp.ok) { throw new Error("HTTP " + resp.status); }
+                return resp.json();
+            }).then(function (corpo) {
+                esconder("estado-carregando");
+                if (corpo) { renderResposta(corpo, anexar); }
+            }).catch(function () {
+                esconder("estado-carregando");
+                mostrar("estado-erro");
+            });
+        }
+
+        el("form-busca").addEventListener("submit", function (ev) {
+            ev.preventDefault();
+            consultaAtual = el("campo-busca").value.trim();
+            offsetAtual = 0;
+            if (consultaAtual) { buscar(consultaAtual, 0, false, false); }
+        });
+
+        el("botao-mais").addEventListener("click", function () {
+            offsetAtual += TAMANHO_PAGINA;
+            buscar(consultaAtual, offsetAtual, true, false);
+        });
+
+        el("form-cadastro").addEventListener("submit", function (ev) {
+            ev.preventDefault();
+            var aviso = el("aviso-cadastro");
+            aviso.classList.add("oculto");
+            var corpo = {
+                email: el("campo-email").value.trim(),
+                telefone: el("campo-telefone").value.trim() || null,
+                consentimento: el("campo-consentimento").checked,
+                origem_busca: consultaAtual || null
+            };
+            fetch(API + "/leads", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(corpo)
+            }).then(function (resp) {
+                if (!resp.ok) { throw new Error("HTTP " + resp.status); }
+                return resp.json();
+            }).then(function (dados) {
+                localStorage.setItem(CHAVE_TOKEN, dados.token);
+                esconder("gate");
+                offsetAtual = 0;
+                buscar(consultaAtual, 0, false, false);
+            }).catch(function () {
+                aviso.textContent = "Não foi possível concluir o cadastro. Confira o e-mail e tente de novo.";
+                aviso.classList.remove("oculto");
+            });
+        });
+    })();
+    </script>
+    {% if analytics_token %}
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_token }}"}'></script>
+    {% endif %}
+</body>
+</html>

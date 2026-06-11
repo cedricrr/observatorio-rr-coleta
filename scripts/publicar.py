@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import re
 import sys
 import tempfile
@@ -50,6 +51,7 @@ CHAVE_DIARIOS = {
     "tjrr": "jornal/diarios-tjrr.html",
 }
 CHAVE_SOBRE = "jornal/sobre.html"
+CHAVE_BUSCA = "jornal/busca.html"
 _META_FONTE = {
     "mprr": {
         "nome": "MPRR",
@@ -210,6 +212,59 @@ def _url_sobre(public_domain: str | None) -> str:
     return "sobre.html"
 
 
+def _url_api_busca() -> str | None:
+    """URL da API de busca (env SEARCH_API_URL). None = busca não implantada.
+
+    Mesmo padrão condicional do CF_ANALYTICS_TOKEN: sem a env, a página
+    de busca não é publicada nem linkada — o site funciona sem ela.
+    """
+    return os.environ.get("SEARCH_API_URL") or None
+
+
+def _url_busca(public_domain: str | None) -> str:
+    """URL da página de busca (absoluta se houver domínio)."""
+    if public_domain:
+        return f"https://{public_domain}/{CHAVE_BUSCA}"
+    return "busca.html"
+
+
+def gerar_pagina_busca(public_domain: str | None, api_url: str) -> str:
+    """Renderiza a página de busca (form + JS que consome a API no Railway)."""
+    url_indice = (
+        f"https://{public_domain}/{CHAVE_INDICE}" if public_domain else "index.html"
+    )
+    template = _env.get_template("busca.html.j2")
+    return template.render(
+        busca_api_url=api_url.rstrip("/"),
+        url_indice=url_indice,
+        url_sobre=_url_sobre(public_domain),
+        url_canonica=(
+            f"https://{public_domain}/{CHAVE_BUSCA}" if public_domain else None
+        ),
+        analytics_token=_token_analytics(),
+    )
+
+
+def publicar_pagina_busca(html: str, r2: R2Client) -> str:
+    """Sobe a página de busca para jornal/busca.html no R2 (mutável, max-age curto)."""
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".html", delete=False, encoding="utf-8",
+    ) as tmp:
+        tmp.write(html)
+        tmp_path = Path(tmp.name)
+    try:
+        url = r2.upload(
+            tmp_path,
+            CHAVE_BUSCA,
+            content_type=CONTENT_TYPE_HTML,
+            cache_control=CACHE_CONTROL_INDICE,
+        )
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    logger.info(f"Página de busca publicada: {url}")
+    return url
+
+
 def gerar_pagina_sobre(public_domain: str | None = None) -> str:
     """Renderiza a página Sobre (identidade, independência, política editorial)."""
     url_indice = (
@@ -278,6 +333,7 @@ def gerar_indice(
         url_diarios_mprr=_url_pagina_diarios("mprr", public_domain),
         url_diarios_tjrr=_url_pagina_diarios("tjrr", public_domain),
         url_sobre=_url_sobre(public_domain),
+        url_busca=_url_busca(public_domain) if _url_api_busca() else None,
         # Canonical da home é a RAIZ do domínio: a Transform Rule do
         # Cloudflare serve / a partir de jornal/index.html.
         url_canonica=f"https://{public_domain}/" if public_domain else None,
@@ -477,6 +533,8 @@ def gerar_sitemap(r2: R2Client) -> str:
         f"https://{dominio}/{CHAVE_DIARIOS['mprr']}",
         f"https://{dominio}/{CHAVE_DIARIOS['tjrr']}",
     ]
+    if _url_api_busca():
+        urls.insert(2, f"https://{dominio}/{CHAVE_BUSCA}")
     edicoes = sorted(
         chave for chave in r2.listar(PREFIXO_R2) if _RE_CHAVE_EDICAO.match(chave)
     )
@@ -544,6 +602,9 @@ def publicar_tudo(
     public_domain = r2.public_domain if hasattr(r2, "public_domain") else None
     publicar_paginas_diarios(r2, diarios_dir, public_domain)
     publicar_pagina_sobre(gerar_pagina_sobre(public_domain), r2)
+    api_busca = _url_api_busca()
+    if api_busca:
+        publicar_pagina_busca(gerar_pagina_busca(public_domain, api_busca), r2)
     publicar_robots_e_sitemap(r2)
     html_indice = gerar_indice(
         diarios_dir, public_domain=public_domain, r2=r2,
@@ -589,6 +650,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.apenas_indice:
             publicar_paginas_diarios(r2, public_domain=r2.public_domain)
             publicar_pagina_sobre(gerar_pagina_sobre(r2.public_domain), r2)
+            api_busca = _url_api_busca()
+            if api_busca:
+                publicar_pagina_busca(
+                    gerar_pagina_busca(r2.public_domain, api_busca), r2,
+                )
             publicar_robots_e_sitemap(r2)
             html = gerar_indice(public_domain=r2.public_domain, r2=r2)
             url = publicar_indice(html, r2)

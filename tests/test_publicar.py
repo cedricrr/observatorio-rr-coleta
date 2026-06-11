@@ -560,6 +560,7 @@ def test_publicar_tudo_chama_publicar_jornal_depois_publicar_indice(
     mock_r2, tmp_path, monkeypatch,
 ):
     """Ordem: jornal HTML → (sidecar JSON se existir) → páginas → sobre → índice."""
+    monkeypatch.delenv("SEARCH_API_URL", raising=False)  # sem página de busca aqui
     _criar_jsons(tmp_path / "diarios", {"mprr": ["2026-05-15-961"]})
     html_path = _criar_html_falso(tmp_path)
 
@@ -1273,3 +1274,80 @@ def test_gerar_pagina_diarios_tem_skip_link_e_main_conteudo(tmp_path):
     html = gerar_pagina_diarios("mprr", tmp_path, public_domain="pub-xxx.r2.dev")
     assert '<a class="skip-link" href="#conteudo">' in html
     assert 'id="conteudo"' in html
+
+
+# =============================================================
+# Página de busca (Fase D)
+# =============================================================
+
+
+def test_gerar_pagina_busca_embute_api_e_canonical():
+    from scripts.publicar import gerar_pagina_busca
+    html = gerar_pagina_busca(
+        public_domain="pub-xxx.r2.dev", api_url="https://api.example",
+    )
+    assert "<!DOCTYPE html>" in html
+    assert "https://api.example" in html
+    assert (
+        '<link rel="canonical" href="https://pub-xxx.r2.dev/jornal/busca.html">'
+        in html
+    )
+
+
+def test_gerar_pagina_busca_tem_form_estados_e_lgpd():
+    from scripts.publicar import gerar_pagina_busca
+    html = gerar_pagina_busca(public_domain=None, api_url="https://api.example")
+    assert 'id="form-busca"' in html
+    assert 'id="form-cadastro"' in html          # gate freemium
+    assert 'type="checkbox"' in html             # consentimento LGPD
+    assert "consentimento" in html
+    assert "X-Sessao" in html                    # JS envia o token de sessão
+    assert "obs_busca_token" in html             # localStorage
+    assert '<a class="skip-link" href="#conteudo">' in html
+    assert 'id="conteudo"' in html
+
+
+def test_publicar_pagina_busca_chave_e_cache_curto(mock_r2):
+    from scripts.publicar import publicar_pagina_busca
+    publicar_pagina_busca("<html></html>", mock_r2)
+    args, kwargs = mock_r2.upload.call_args
+    assert args[1] == "jornal/busca.html"
+    assert kwargs["cache_control"] == "public, max-age=300"
+
+
+def test_gerar_indice_link_busca_condicional_a_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEARCH_API_URL", "https://api.example")
+    html_com = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
+    monkeypatch.delenv("SEARCH_API_URL")
+    html_sem = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
+
+    assert "https://pub-xxx.r2.dev/jornal/busca.html" in html_com
+    assert "busca.html" not in html_sem
+
+
+def test_gerar_sitemap_inclui_busca_condicional_a_env(mock_r2, monkeypatch):
+    from scripts.publicar import gerar_sitemap
+    mock_r2.listar.return_value = []
+
+    monkeypatch.setenv("SEARCH_API_URL", "https://api.example")
+    com = gerar_sitemap(mock_r2)
+    monkeypatch.delenv("SEARCH_API_URL")
+    sem = gerar_sitemap(mock_r2)
+
+    assert "jornal/busca.html" in com
+    assert "busca.html" not in sem
+
+
+def test_publicar_tudo_publica_busca_quando_configurada(
+    mock_r2, tmp_path, monkeypatch,
+):
+    monkeypatch.setenv("SEARCH_API_URL", "https://api.example")
+    _criar_jsons(tmp_path / "diarios", {"mprr": ["2026-05-15-961"]})
+    html_path = _criar_html_falso(tmp_path)
+
+    publicar_tudo(
+        html_path, mock_r2, date(2026, 5, 15), diarios_dir=tmp_path / "diarios",
+    )
+
+    chaves = [c.args[1] for c in mock_r2.upload.call_args_list]
+    assert "jornal/busca.html" in chaves
