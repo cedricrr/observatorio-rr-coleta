@@ -7,6 +7,9 @@ Público de Roraima) e do **TJRR** (Tribunal de Justiça de Roraima),
 armazenar os PDFs no Cloudflare R2 e gerar metadados em JSON
 versionados aqui no git.
 
+O jornal editorial gerado a partir da coleta é publicado em
+**[observatoriorr.com.br](https://observatoriorr.com.br)**.
+
 ## Como funciona
 
 - **Descoberta**: varredura periódica das fontes oficiais para

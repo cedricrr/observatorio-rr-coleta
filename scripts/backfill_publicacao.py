@@ -100,7 +100,9 @@ def processar_data(
     for fonte, chave in sorted(chaves_por_fonte.items()):
         materias.extend(processar_chave(chave, fonte, r2, cliente))
 
-    html = renderizar_jornal(materias, data)
+    html = renderizar_jornal(
+        materias, data, url_canonica=r2.url_publica(chave_jornal(data)),
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{data.isoformat()}.html"
     output_path.write_text(html, encoding="utf-8")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date
 from pathlib import Path
 
@@ -11,6 +12,15 @@ from markupsafe import Markup, escape
 from scripts.segmentar import Materia
 
 ORDEM_ORGAOS = ["MPRR", "TJRR"]
+
+
+def _token_analytics() -> str | None:
+    """Token do Cloudflare Web Analytics (env opcional CF_ANALYTICS_TOKEN).
+
+    Sem o token os templates não emitem o beacon — render local e CI
+    continuam funcionando sem instrumentação.
+    """
+    return os.environ.get("CF_ANALYTICS_TOKEN") or None
 
 _MESES_PT_BR = [
     "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -181,12 +191,16 @@ def renderizar_jornal(
     materias: list[Materia],
     data_edicao: date,
     num_edicao: int | None = None,
+    url_canonica: str | None = None,
 ) -> str:
     """Renderiza HTML do jornal editorial a partir de matérias classificadas.
 
     Filtra matérias com relevante=False (rotina administrativa).
     Agrupa por órgão (MPRR primeiro, TJRR depois).
     Retorna documento HTML completo auto-contido.
+
+    `url_canonica` (a URL pública da edição) habilita as tags canonical e
+    Open Graph no <head>; sem ela o HTML sai sem metadados de publicação.
     """
     relevantes = [m for m in materias if m.relevante]
     materias_por_orgao = _agrupar_por_orgao(relevantes)
@@ -198,4 +212,6 @@ def renderizar_jornal(
         num_edicao=num_edicao,
         total_materias=len(relevantes),
         materias_por_orgao=materias_por_orgao,
+        url_canonica=url_canonica,
+        analytics_token=_token_analytics(),
     )

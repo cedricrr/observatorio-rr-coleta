@@ -42,6 +42,9 @@ def mock_r2():
     r2.download_bytes.side_effect = ClientError(
         {"Error": {"Code": "404"}}, "GetObject",
     )
+    # listar() default vazio — gerar_sitemap itera o retorno; testes que
+    # querem edições no sitemap sobrescrevem listar.return_value.
+    r2.listar.return_value = []
     return r2
 
 
@@ -395,6 +398,66 @@ def test_gerar_indice_empty_state_quando_zero_edicoes(tmp_path):
 
 
 # =============================================================
+# Metadados de publicação: canonical, Open Graph, favicon (Ciclo 12)
+# =============================================================
+
+
+def test_gerar_indice_com_dominio_tem_canonical_e_og(tmp_path):
+    """Com public_domain, a home declara canonical na RAIZ do domínio
+    (a Transform Rule serve / → jornal/index.html) e tags OG/Twitter."""
+    _criar_jsons(tmp_path, {"mprr": ["2026-05-15-961"]})
+    html = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
+    assert '<link rel="canonical" href="https://pub-xxx.r2.dev/">' in html
+    assert '<meta property="og:url" content="https://pub-xxx.r2.dev/">' in html
+    assert '<meta property="og:title" content="Observatório Roraima">' in html
+    assert '<meta property="og:type" content="website">' in html
+    assert '<meta property="og:locale" content="pt_BR">' in html
+    assert '<meta property="og:site_name" content="Observatório Roraima">' in html
+    assert '<meta property="og:description"' in html
+    assert '<meta name="twitter:card" content="summary">' in html
+
+
+def test_gerar_indice_sem_dominio_nao_tem_canonical_nem_og(tmp_path):
+    _criar_jsons(tmp_path, {"mprr": ["2026-05-15-961"]})
+    html = gerar_indice(tmp_path, public_domain=None)
+    assert 'rel="canonical"' not in html
+    assert 'property="og:' not in html
+
+
+def test_gerar_indice_tem_favicon_inline(tmp_path):
+    """Favicon SVG em data-URI — presente mesmo sem domínio (zero objetos no bucket)."""
+    html = gerar_indice(tmp_path, public_domain=None)
+    assert '<link rel="icon" href="data:image/svg+xml,' in html
+
+
+def test_gerar_pagina_diarios_com_dominio_tem_canonical_e_og(tmp_path):
+    _criar_jsons_completos(tmp_path, {"mprr": [_reg("2026-06-08", 975)]})
+    html = gerar_pagina_diarios("mprr", tmp_path, public_domain="pub-xxx.r2.dev")
+    assert (
+        '<link rel="canonical" href="https://pub-xxx.r2.dev/jornal/diarios-mprr.html">'
+        in html
+    )
+    assert (
+        '<meta property="og:url" content="https://pub-xxx.r2.dev/jornal/diarios-mprr.html">'
+        in html
+    )
+    assert '<meta property="og:type" content="website">' in html
+    assert '<meta name="twitter:card" content="summary">' in html
+
+
+def test_gerar_pagina_diarios_sem_dominio_nao_tem_canonical(tmp_path):
+    _criar_jsons_completos(tmp_path, {"mprr": [_reg("2026-06-08", 975)]})
+    html = gerar_pagina_diarios("mprr", tmp_path, public_domain=None)
+    assert 'rel="canonical"' not in html
+    assert 'property="og:' not in html
+
+
+def test_gerar_pagina_diarios_tem_favicon_inline(tmp_path):
+    html = gerar_pagina_diarios("mprr", tmp_path, public_domain=None)
+    assert '<link rel="icon" href="data:image/svg+xml,' in html
+
+
+# =============================================================
 # publicar_indice
 # =============================================================
 
@@ -496,7 +559,7 @@ def test_publicar_sidecar_serializa_json_legivel_preservando_acentos(mock_r2):
 def test_publicar_tudo_chama_publicar_jornal_depois_publicar_indice(
     mock_r2, tmp_path, monkeypatch,
 ):
-    """Ordem: jornal HTML → (sidecar JSON se existir) → índice."""
+    """Ordem: jornal HTML → (sidecar JSON se existir) → páginas → sobre → índice."""
     _criar_jsons(tmp_path / "diarios", {"mprr": ["2026-05-15-961"]})
     html_path = _criar_html_falso(tmp_path)
 
@@ -512,6 +575,9 @@ def test_publicar_tudo_chama_publicar_jornal_depois_publicar_indice(
         "jornal/2026-05-15.html",
         "jornal/diarios-mprr.html",
         "jornal/diarios-tjrr.html",
+        "jornal/sobre.html",
+        "robots.txt",
+        "sitemap.xml",
         "jornal/index.html",
     ]
 
@@ -538,6 +604,9 @@ def test_publicar_tudo_publica_sidecar_quando_arquivo_existe(
         "jornal/2026-05-15.json",
         "jornal/diarios-mprr.html",
         "jornal/diarios-tjrr.html",
+        "jornal/sobre.html",
+        "robots.txt",
+        "sitemap.xml",
         "jornal/index.html",
     ]
 
@@ -1055,3 +1124,152 @@ def test_gerar_indice_com_r2_404_em_uma_data_nao_quebra(
     )
     # hero do sidecar disponível mesmo com 404 em outra data
     assert "OK" in html
+
+
+# =============================================================
+# Cloudflare Web Analytics (Ciclo 12) — beacon condicional via env
+# =============================================================
+
+
+def test_gerar_indice_com_token_emite_beacon_analytics(monkeypatch, tmp_path):
+    monkeypatch.setenv("CF_ANALYTICS_TOKEN", "tok-abc123")
+    html = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
+    assert "static.cloudflareinsights.com/beacon.min.js" in html
+    assert "tok-abc123" in html
+
+
+def test_gerar_indice_sem_token_nao_emite_beacon(monkeypatch, tmp_path):
+    monkeypatch.delenv("CF_ANALYTICS_TOKEN", raising=False)
+    html = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
+    assert "cloudflareinsights" not in html
+
+
+def test_gerar_pagina_diarios_com_token_emite_beacon_analytics(monkeypatch, tmp_path):
+    monkeypatch.setenv("CF_ANALYTICS_TOKEN", "tok-abc123")
+    html = gerar_pagina_diarios("mprr", tmp_path, public_domain="pub-xxx.r2.dev")
+    assert "static.cloudflareinsights.com/beacon.min.js" in html
+
+
+def test_gerar_pagina_diarios_sem_token_nao_emite_beacon(monkeypatch, tmp_path):
+    monkeypatch.delenv("CF_ANALYTICS_TOKEN", raising=False)
+    html = gerar_pagina_diarios("mprr", tmp_path, public_domain="pub-xxx.r2.dev")
+    assert "cloudflareinsights" not in html
+
+
+# =============================================================
+# Página "Sobre" (Ciclo 12) — identidade pública do projeto
+# =============================================================
+
+
+def test_gerar_pagina_sobre_tem_disclaimer_de_independencia():
+    from scripts.publicar import gerar_pagina_sobre
+    html = gerar_pagina_sobre(public_domain="pub-xxx.r2.dev")
+    assert "<!DOCTYPE html>" in html
+    assert "independente" in html
+    assert "sem vínculo" in html
+    # política editorial declarada publicamente
+    assert "Política editorial" in html
+
+
+def test_gerar_pagina_sobre_com_dominio_tem_canonical():
+    from scripts.publicar import gerar_pagina_sobre
+    html = gerar_pagina_sobre(public_domain="pub-xxx.r2.dev")
+    assert (
+        '<link rel="canonical" href="https://pub-xxx.r2.dev/jornal/sobre.html">'
+        in html
+    )
+    assert 'href="https://pub-xxx.r2.dev/jornal/index.html"' in html
+
+
+def test_gerar_pagina_sobre_sem_dominio_nao_tem_canonical():
+    from scripts.publicar import gerar_pagina_sobre
+    html = gerar_pagina_sobre(public_domain=None)
+    assert 'rel="canonical"' not in html
+
+
+def test_publicar_pagina_sobre_chave_e_headers(mock_r2):
+    from scripts.publicar import publicar_pagina_sobre
+    publicar_pagina_sobre("<html>sobre</html>", mock_r2)
+    args, kwargs = mock_r2.upload.call_args
+    assert args[1] == "jornal/sobre.html"
+    assert kwargs["content_type"] == "text/html; charset=utf-8"
+    assert kwargs["cache_control"] == "public, max-age=300"
+
+
+def test_gerar_indice_tem_link_para_sobre(tmp_path):
+    _criar_jsons(tmp_path, {"mprr": ["2026-05-15-961"]})
+    html = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
+    assert 'href="https://pub-xxx.r2.dev/jornal/sobre.html"' in html
+
+
+def test_gerar_pagina_diarios_tem_link_para_sobre(tmp_path):
+    _criar_jsons_completos(tmp_path, {"mprr": [_reg("2026-06-08", 975)]})
+    html = gerar_pagina_diarios("mprr", tmp_path, public_domain="pub-xxx.r2.dev")
+    assert 'href="https://pub-xxx.r2.dev/jornal/sobre.html"' in html
+
+
+# =============================================================
+# robots.txt + sitemap.xml (Ciclo 12) — chaves na RAIZ do bucket
+# =============================================================
+
+
+def test_gerar_robots_permite_tudo_e_referencia_sitemap():
+    from scripts.publicar import gerar_robots
+    txt = gerar_robots("observatoriorr.com.br")
+    assert "User-agent: *" in txt
+    assert "Allow: /" in txt
+    assert "Disallow: /jornal/*.json" in txt
+    assert "Sitemap: https://observatoriorr.com.br/sitemap.xml" in txt
+
+
+def test_gerar_sitemap_lista_home_paginas_fixas_e_edicoes(mock_r2):
+    from scripts.publicar import gerar_sitemap
+    mock_r2.public_domain = "observatoriorr.com.br"
+    mock_r2.listar.return_value = [
+        "jornal/2026-06-01.html",
+        "jornal/2026-06-01.json",
+        "jornal/2026-06-02.html",
+        "jornal/diarios-mprr.html",
+        "jornal/index.html",
+        "jornal/sobre.html",
+    ]
+    xml = gerar_sitemap(mock_r2)
+    mock_r2.listar.assert_called_once_with("jornal/")
+    assert "<loc>https://observatoriorr.com.br/</loc>" in xml
+    assert "<loc>https://observatoriorr.com.br/jornal/sobre.html</loc>" in xml
+    assert "<loc>https://observatoriorr.com.br/jornal/diarios-mprr.html</loc>" in xml
+    assert "<loc>https://observatoriorr.com.br/jornal/diarios-tjrr.html</loc>" in xml
+    assert "<loc>https://observatoriorr.com.br/jornal/2026-06-01.html</loc>" in xml
+    assert "<loc>https://observatoriorr.com.br/jornal/2026-06-02.html</loc>" in xml
+    # sidecars não entram; o index.html não duplica a home "/"
+    assert ".json" not in xml
+    assert "index.html" not in xml
+
+
+def test_gerar_sitemap_e_xml_bem_formado(mock_r2):
+    import xml.etree.ElementTree as ET
+
+    from scripts.publicar import gerar_sitemap
+    mock_r2.public_domain = "observatoriorr.com.br"
+    mock_r2.listar.return_value = ["jornal/2026-06-01.html"]
+    ET.fromstring(gerar_sitemap(mock_r2))
+
+
+def test_publicar_robots_e_sitemap_chaves_na_raiz(mock_r2):
+    from scripts.publicar import publicar_robots_e_sitemap
+    mock_r2.public_domain = "observatoriorr.com.br"
+    mock_r2.listar.return_value = ["jornal/2026-06-01.html"]
+    publicar_robots_e_sitemap(mock_r2)
+    chamadas = {c.args[1]: c.kwargs for c in mock_r2.upload.call_args_list}
+    assert "robots.txt" in chamadas
+    assert "sitemap.xml" in chamadas
+    assert chamadas["robots.txt"]["content_type"] == "text/plain; charset=utf-8"
+    assert chamadas["sitemap.xml"]["content_type"] == "application/xml"
+    assert chamadas["sitemap.xml"]["cache_control"] == "public, max-age=3600"
+
+
+def test_gerar_pagina_diarios_tem_skip_link_e_main_conteudo(tmp_path):
+    """Acessibilidade: skip-link no topo + <main id="conteudo"> (padrão da home)."""
+    html = gerar_pagina_diarios("mprr", tmp_path, public_domain="pub-xxx.r2.dev")
+    assert '<a class="skip-link" href="#conteudo">' in html
+    assert 'id="conteudo"' in html

@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diários do {{ orgao_nome }} · Observatório Roraima</title>
-    <meta name="description" content="Arquivo de diários oficiais do {{ orgao_subtitulo }} — download em PDF.">
+    <title>Sobre · Observatório Roraima</title>
+    <meta name="description" content="O que é o Observatório Roraima: projeto cívico independente de monitoramento dos diários oficiais de Roraima.">
     {% if url_canonica %}
     <link rel="canonical" href="{{ url_canonica }}">
-    <meta property="og:title" content="Diários do {{ orgao_nome }} · Observatório Roraima">
-    <meta property="og:description" content="Arquivo de diários oficiais do {{ orgao_subtitulo }} — download em PDF.">
+    <meta property="og:title" content="Sobre · Observatório Roraima">
+    <meta property="og:description" content="O que é o Observatório Roraima: projeto cívico independente de monitoramento dos diários oficiais de Roraima.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ url_canonica }}">
     <meta property="og:locale" content="pt_BR">
@@ -27,7 +27,7 @@
             --cor-fundo: #fafafa;
             --cor-divisa: #e0e0e0;
             --cor-rule: #c8102e;
-            --max-largura: 1180px;
+            --max-largura: 760px;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -98,14 +98,6 @@
             margin: 0.4rem 0 0.6rem;
         }
 
-        header.masthead .meta {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            color: var(--cor-secundaria);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-
         /* ============ VOLTAR ============ */
         a.voltar {
             display: inline-block;
@@ -120,110 +112,37 @@
 
         a.voltar:hover { color: var(--cor-rule); }
 
-        /* ============ NAV DE ANOS ============ */
-        nav.nav-anos {
-            position: sticky;
-            top: 0;
-            background: var(--cor-fundo);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.4rem 0.9rem;
-            padding: 0.75rem 0;
-            border-top: 1px solid var(--cor-primaria);
-            border-bottom: 1px solid var(--cor-divisa);
-            margin-bottom: 1.5rem;
-            z-index: 5;
-        }
-
-        nav.nav-anos a {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--cor-primaria);
-            text-decoration: none;
-        }
-
-        nav.nav-anos a:hover { color: var(--cor-rule); }
-
-        /* ============ SEÇÕES POR ANO ============ */
-        section.ano-diarios {
-            padding-top: 1rem;
-            margin-bottom: 1.5rem;
-            scroll-margin-top: 3.5rem;
-        }
-
-        section.ano-diarios h2 {
+        /* ============ CONTEÚDO ============ */
+        main.sobre h2 {
             font-family: 'Fraunces', Georgia, serif;
             font-weight: 700;
-            font-size: 1.6rem;
+            font-size: 1.5rem;
             color: var(--cor-primaria);
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.35rem;
+            margin: 2rem 0 0.6rem;
+            padding-bottom: 0.3rem;
             border-bottom: 2px solid var(--cor-rule);
         }
 
-        ul.lista-diarios {
-            list-style: none;
-        }
-
-        ul.lista-diarios li {
-            border-bottom: 1px solid var(--cor-divisa);
-            padding: 0.55rem 0;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: baseline;
-            gap: 0.5rem 1rem;
-        }
-
-        ul.lista-diarios li .data-diario {
-            font-family: 'Fraunces', Georgia, serif;
-            font-weight: 500;
+        main.sobre p {
+            margin-bottom: 0.85rem;
             font-size: 1rem;
-            color: var(--cor-primaria);
-            min-width: 11rem;
         }
 
-        ul.lista-diarios li .num-diario {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.72rem;
-            color: var(--cor-secundaria);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
+        main.sobre ul {
+            margin: 0 0 0.85rem 1.25rem;
         }
 
-        ul.lista-diarios li .tam-diario {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.72rem;
-            color: var(--cor-secundaria);
+        main.sobre li {
+            margin-bottom: 0.4rem;
         }
 
-        ul.lista-diarios li .link-pdf {
-            margin-left: auto;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.72rem;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--cor-rule);
-            text-decoration: none;
-            border: 1px solid var(--cor-rule);
-            border-radius: 3px;
-            padding: 0.2rem 0.55rem;
-        }
-
-        ul.lista-diarios li .link-pdf:hover {
-            background: var(--cor-rule);
-            color: #fff;
-        }
-
-        /* ============ EMPTY ============ */
-        .empty-state {
-            text-align: center;
-            padding: 4rem 1rem;
-            color: var(--cor-secundaria);
+        main.sobre .destaque-independencia {
             font-family: 'Fraunces', Georgia, serif;
             font-style: italic;
-            font-size: 1.05rem;
+            font-size: 1.1rem;
+            border-left: 3px solid var(--cor-rule);
+            padding: 0.5rem 0 0.5rem 1rem;
+            margin: 1.25rem 0;
         }
 
         /* ============ FOOTER ============ */
@@ -238,6 +157,10 @@
             text-transform: uppercase;
             letter-spacing: 0.08em;
         }
+
+        footer.jornal-rodape a {
+            color: var(--cor-secundaria);
+        }
     </style>
 </head>
 <body>
@@ -245,46 +168,68 @@
     <div class="container">
         <header class="masthead">
             <h1 class="wordmark">Observatório Roraima</h1>
-            <p class="subhead">Diários oficiais — {{ orgao_nome }}</p>
-            <p class="meta">{{ total }} {{ "edição" if total == 1 else "edições" }} · {{ orgao_subtitulo }}</p>
+            <p class="subhead">Diário editorial dos órgãos públicos de Roraima</p>
         </header>
 
-        <a class="voltar" href="{{ url_indice }}">← Observatório Roraima</a>
+        <a class="voltar" href="{{ url_indice }}">&larr; Voltar à capa</a>
 
-        <main id="conteudo">
-        {% if anos %}
-        <nav class="nav-anos">
-            {% for a in anos %}
-            <a href="#ano-{{ a.ano }}">{{ a.ano }}</a>
-            {% endfor %}
-        </nav>
+        <main class="sobre" id="conteudo">
+            <h2>O que é</h2>
+            <p>
+                O <strong>Observatório Roraima</strong> é um projeto cívico
+                <strong>independente</strong> de monitoramento dos diários oficiais
+                de Roraima. Todos os dias, o Observatório coleta as edições publicadas
+                pelos órgãos monitorados, arquiva os PDFs originais em um repositório
+                imutável e produz um resumo editorial automatizado com as matérias de
+                maior interesse público.
+            </p>
+            <p class="destaque-independencia">
+                O Observatório Roraima é um projeto independente,
+                <strong>sem vínculo</strong> com qualquer órgão público,
+                partido político ou veículo de imprensa.
+            </p>
 
-        {% for a in anos %}
-        <section class="ano-diarios" id="ano-{{ a.ano }}">
-            <h2>{{ a.ano }}</h2>
-            <ul class="lista-diarios">
-                {% for e in a.edicoes %}
-                <li>
-                    <span class="data-diario">{{ e.data_formatada }}</span>
-                    {%- if mostrar_numero and e.numero is not none %}
-                    <span class="num-diario">Edição nº {{ e.numero }}</span>
-                    {%- endif %}
-                    {%- if e.tamanho %}
-                    <span class="tam-diario">{{ formatar_tamanho(e.tamanho) }}</span>
-                    {%- endif %}
-                    <a class="link-pdf" href="{{ e.url_r2 }}" target="_blank" rel="noopener">PDF</a>
-                </li>
-                {% endfor %}
+            <h2>Fontes monitoradas</h2>
+            <ul>
+                <li><strong>MPRR</strong> — Ministério Público do Estado de Roraima</li>
+                <li><strong>TJRR</strong> — Tribunal de Justiça do Estado de Roraima</li>
             </ul>
-        </section>
-        {% endfor %}
-        {% else %}
-        <div class="empty-state">Nenhum diário disponível.</div>
-        {% endif %}
+
+            <h2>Política editorial</h2>
+            <p>
+                A <strong>coleta não faz triagem</strong>: todas as edições publicadas
+                pelos órgãos são baixadas e arquivadas integralmente, sem leitura,
+                filtro ou priorização. A seleção do que vira destaque acontece em uma
+                etapa posterior, automatizada, que classifica as matérias por categoria
+                e relevância de interesse público (contratos, licitações, pessoal,
+                cessões, entre outras). Atos de rotina administrativa não são
+                destacados — mas permanecem disponíveis nos PDFs originais.
+            </p>
+            <p>
+                Cada matéria destacada traz link para o <strong>diário oficial
+                original (PDF)</strong>, para conferência direta da fonte primária.
+            </p>
+
+            <h2>Dados e transparência</h2>
+            <p>
+                Os PDFs arquivados são cópias fiéis dos publicados pelos órgãos.
+                Os metadados de cada edição (data, fonte, URL original e hash de
+                integridade) são versionados publicamente em um repositório git,
+                criando um histórico auditável da coleta.
+            </p>
+
+            <h2>Contato</h2>
+            <p>
+                O projeto é mantido por
+                <a href="https://github.com/cedricrr">@cedricrr</a>.
+                Código e metadados estão no
+                <a href="https://github.com/cedricrr/observatorio-rr-coleta">GitHub</a>,
+                sob licença MIT.
+            </p>
         </main>
 
         <footer class="jornal-rodape">
-            <p>Observatório Roraima · Arquivo de diários oficiais · <a href="{{ url_sobre }}">Sobre</a></p>
+            <p>Observatório Roraima · Projeto cívico independente</p>
         </footer>
     </div>
 {% if analytics_token %}

@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Observatório Roraima</title>
     <meta name="description" content="Diário editorial dos órgãos públicos de Roraima — destaques das últimas edições.">
+    {% if url_canonica %}
+    <link rel="canonical" href="{{ url_canonica }}">
+    <meta property="og:title" content="Observatório Roraima">
+    <meta property="og:description" content="Diário editorial dos órgãos públicos de Roraima — destaques das últimas edições.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url_canonica }}">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:site_name" content="Observatório Roraima">
+    <meta name="twitter:card" content="summary">
+    {% endif %}
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23c8102e'/%3E%3Ctext x='16' y='24' font-family='Georgia,serif' font-size='22' font-weight='bold' text-anchor='middle' fill='%23fafafa'%3EO%3C/text%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,400;9..144,0,600;9..144,0,700;9..144,1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -454,8 +465,11 @@
         </main>
 
         <footer class="jornal-rodape">
-            <p>Observatório Roraima · Diário editorial automatizado</p>
+            <p>Observatório Roraima · Diário editorial automatizado · <a href="{{ url_sobre }}">Sobre</a></p>
         </footer>
     </div>
+{% if analytics_token %}
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_token }}"}'></script>
+{% endif %}
 </body>
 </html>

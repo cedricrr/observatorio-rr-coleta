@@ -115,6 +115,14 @@ class R2Client:
         """URL pública do objeto via domínio CDN configurado."""
         return f"https://{self.public_domain}/{chave}"
 
+    def listar(self, prefixo: str) -> list[str]:
+        """Lista todas as chaves do bucket sob o prefixo, paginando."""
+        paginator = self.client.get_paginator("list_objects_v2")
+        chaves: list[str] = []
+        for pagina in paginator.paginate(Bucket=self.bucket, Prefix=prefixo):
+            chaves.extend(obj["Key"] for obj in pagina.get("Contents", []))
+        return chaves
+
     def download_bytes(self, chave: str) -> bytes:
         """Baixa o objeto da chave informada e retorna os bytes.
 

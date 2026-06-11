@@ -148,7 +148,8 @@ def gerar_jornal_diario(
         todas_materias.extend(mats)
         logger.info(f"  {fonte}: {len(mats)} matérias classificadas")
 
-    html = renderizar_jornal(todas_materias, data_edicao)
+    url_jornal = r2.url_publica(f"jornal/{data_edicao.isoformat()}.html")
+    html = renderizar_jornal(todas_materias, data_edicao, url_canonica=url_jornal)
 
     output_path = output_dir / f"{data_edicao.isoformat()}.html"
     output_path.write_text(html, encoding="utf-8")
@@ -156,7 +157,6 @@ def gerar_jornal_diario(
 
     # Sidecar JSON (Ciclo 11.4): persiste matérias relevantes em disco para que
     # o passo seguinte (scripts.publicar) possa subi-lo ao R2 sem reprocessar.
-    url_jornal = r2.url_publica(f"jornal/{data_edicao.isoformat()}.html")
     sidecar = montar_sidecar(todas_materias, data_edicao, url_jornal)
     sidecar_path = output_path.with_suffix(".json")
     sidecar_path.write_text(

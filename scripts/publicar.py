@@ -20,6 +20,7 @@ from scripts.renderizar import (
     _formatar_data_pt_br,
     _formatar_valor_brl,
     _ilustracao_categoria,
+    _token_analytics,
 )
 
 RESUMO_MAX_CHARS = 280
@@ -28,11 +29,18 @@ logger = logging.getLogger(__name__)
 
 PREFIXO_R2 = "jornal/"
 CHAVE_INDICE = "jornal/index.html"
+# robots/sitemap precisam estar na RAIZ do domínio — única exceção ao
+# prefixo jornal/ entre as chaves públicas geradas por este módulo.
+CHAVE_ROBOTS = "robots.txt"
+CHAVE_SITEMAP = "sitemap.xml"
 CONTENT_TYPE_HTML = "text/html; charset=utf-8"
 CONTENT_TYPE_JSON = "application/json"
+CONTENT_TYPE_TXT = "text/plain; charset=utf-8"
+CONTENT_TYPE_XML = "application/xml"
 # Índice muda a cada publicação; max-age curto evita servir índice stale do CDN
 # (os HTMLs de edição são imutáveis e sobem sem Cache-Control).
 CACHE_CONTROL_INDICE = "public, max-age=300"
+CACHE_CONTROL_SITEMAP = "public, max-age=3600"
 DIARIOS_DIR_DEFAULT = Path("data/diarios")
 OUTPUT_DIR_DEFAULT = Path("/tmp/observatorio-roraima")
 
@@ -41,6 +49,7 @@ CHAVE_DIARIOS = {
     "mprr": "jornal/diarios-mprr.html",
     "tjrr": "jornal/diarios-tjrr.html",
 }
+CHAVE_SOBRE = "jornal/sobre.html"
 _META_FONTE = {
     "mprr": {
         "nome": "MPRR",
@@ -163,6 +172,11 @@ def gerar_pagina_diarios(
         anos=anos,
         total=len(edicoes),
         url_indice=url_indice,
+        url_sobre=_url_sobre(public_domain),
+        url_canonica=(
+            f"https://{public_domain}/{CHAVE_DIARIOS[fonte]}" if public_domain else None
+        ),
+        analytics_token=_token_analytics(),
     )
 
 
@@ -187,6 +201,52 @@ def _url_pagina_diarios(fonte: str, public_domain: str | None) -> str:
     if public_domain:
         return f"https://{public_domain}/{chave}"
     return f"diarios-{fonte}.html"
+
+
+def _url_sobre(public_domain: str | None) -> str:
+    """URL da página Sobre (absoluta se houver domínio)."""
+    if public_domain:
+        return f"https://{public_domain}/{CHAVE_SOBRE}"
+    return "sobre.html"
+
+
+def gerar_pagina_sobre(public_domain: str | None = None) -> str:
+    """Renderiza a página Sobre (identidade, independência, política editorial)."""
+    url_indice = (
+        f"https://{public_domain}/{CHAVE_INDICE}" if public_domain else "index.html"
+    )
+    template = _env.get_template("sobre.html.j2")
+    return template.render(
+        url_indice=url_indice,
+        url_canonica=(
+            f"https://{public_domain}/{CHAVE_SOBRE}" if public_domain else None
+        ),
+        analytics_token=_token_analytics(),
+    )
+
+
+def publicar_pagina_sobre(html: str, r2: R2Client) -> str:
+    """Sobe a página Sobre para jornal/sobre.html no R2.
+
+    Mesma política do índice (max-age curto): a página é mutável (muda
+    quando o texto institucional evolui).
+    """
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".html", delete=False, encoding="utf-8",
+    ) as tmp:
+        tmp.write(html)
+        tmp_path = Path(tmp.name)
+    try:
+        url = r2.upload(
+            tmp_path,
+            CHAVE_SOBRE,
+            content_type=CONTENT_TYPE_HTML,
+            cache_control=CACHE_CONTROL_INDICE,
+        )
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    logger.info(f"Página Sobre publicada: {url}")
+    return url
 
 
 def gerar_indice(
@@ -217,6 +277,11 @@ def gerar_indice(
         data_ultima_formatada=data_ultima,
         url_diarios_mprr=_url_pagina_diarios("mprr", public_domain),
         url_diarios_tjrr=_url_pagina_diarios("tjrr", public_domain),
+        url_sobre=_url_sobre(public_domain),
+        # Canonical da home é a RAIZ do domínio: a Transform Rule do
+        # Cloudflare serve / a partir de jornal/index.html.
+        url_canonica=f"https://{public_domain}/" if public_domain else None,
+        analytics_token=_token_analytics(),
     )
 
 
@@ -384,6 +449,80 @@ def publicar_paginas_diarios(
     return urls
 
 
+_RE_CHAVE_EDICAO = re.compile(r"^jornal/\d{4}-\d{2}-\d{2}\.html$")
+
+
+def gerar_robots(public_domain: str) -> str:
+    """robots.txt: libera tudo menos os sidecars JSON; aponta o sitemap."""
+    return (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /jornal/*.json\n"
+        "\n"
+        f"Sitemap: https://{public_domain}/{CHAVE_SITEMAP}\n"
+    )
+
+
+def gerar_sitemap(r2: R2Client) -> str:
+    """Sitemap XML: home (raiz), páginas fixas e todas as edições no R2.
+
+    A fonte da verdade das edições é a listagem do bucket (mesma filosofia
+    do dedupe), não os JSONs locais. A home entra como "/" — o canonical
+    da Transform Rule — e o index.html não é repetido.
+    """
+    dominio = r2.public_domain
+    urls = [
+        f"https://{dominio}/",
+        f"https://{dominio}/{CHAVE_SOBRE}",
+        f"https://{dominio}/{CHAVE_DIARIOS['mprr']}",
+        f"https://{dominio}/{CHAVE_DIARIOS['tjrr']}",
+    ]
+    edicoes = sorted(
+        chave for chave in r2.listar(PREFIXO_R2) if _RE_CHAVE_EDICAO.match(chave)
+    )
+    urls.extend(f"https://{dominio}/{chave}" for chave in edicoes)
+    corpo = "\n".join(f"  <url><loc>{u}</loc></url>" for u in urls)
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{corpo}\n"
+        "</urlset>\n"
+    )
+
+
+def _publicar_texto(
+    conteudo: str, chave: str, content_type: str, r2: R2Client,
+) -> str:
+    """Sobe um artefato textual pequeno (robots/sitemap) com max-age de 1h."""
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".txt", delete=False, encoding="utf-8",
+    ) as tmp:
+        tmp.write(conteudo)
+        tmp_path = Path(tmp.name)
+    try:
+        url = r2.upload(
+            tmp_path,
+            chave,
+            content_type=content_type,
+            cache_control=CACHE_CONTROL_SITEMAP,
+        )
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    logger.info(f"{chave} publicado: {url}")
+    return url
+
+
+def publicar_robots_e_sitemap(r2: R2Client) -> tuple[str, str]:
+    """Gera e sobe robots.txt e sitemap.xml na raiz do bucket."""
+    url_robots = _publicar_texto(
+        gerar_robots(r2.public_domain), CHAVE_ROBOTS, CONTENT_TYPE_TXT, r2,
+    )
+    url_sitemap = _publicar_texto(
+        gerar_sitemap(r2), CHAVE_SITEMAP, CONTENT_TYPE_XML, r2,
+    )
+    return url_robots, url_sitemap
+
+
 def publicar_tudo(
     html_path: Path,
     r2: R2Client,
@@ -404,6 +543,8 @@ def publicar_tudo(
         publicar_sidecar(sidecar, r2, data_edicao)
     public_domain = r2.public_domain if hasattr(r2, "public_domain") else None
     publicar_paginas_diarios(r2, diarios_dir, public_domain)
+    publicar_pagina_sobre(gerar_pagina_sobre(public_domain), r2)
+    publicar_robots_e_sitemap(r2)
     html_indice = gerar_indice(
         diarios_dir, public_domain=public_domain, r2=r2,
     )
@@ -447,6 +588,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.apenas_indice:
             publicar_paginas_diarios(r2, public_domain=r2.public_domain)
+            publicar_pagina_sobre(gerar_pagina_sobre(r2.public_domain), r2)
+            publicar_robots_e_sitemap(r2)
             html = gerar_indice(public_domain=r2.public_domain, r2=r2)
             url = publicar_indice(html, r2)
             print(f"Índice publicado: {url}")

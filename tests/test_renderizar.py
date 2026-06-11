@@ -335,3 +335,81 @@ def test_ilustracao_categoria_cobre_todas_as_categorias_validas():
         vistos.add(svg)
     # categorias específicas geram ilustrações distintas ("Outros" = fallback)
     assert len(vistos) >= 8
+
+
+# =============================================================
+# Metadados de publicação: description, canonical, OG (Ciclo 12)
+# =============================================================
+
+
+def test_renderiza_tem_meta_description_dinamica():
+    mats = [_materia_classificada(), _materia_classificada(relevante=False)]
+    html = renderizar_jornal(mats, date(2026, 4, 30))
+    assert (
+        '<meta name="description" content="Edição de 30 de abril de 2026 — '
+        "1 matéria relevante dos diários oficiais de Roraima.\"" in html
+    )
+
+
+def test_renderiza_meta_description_pluraliza():
+    mats = [_materia_classificada(), _materia_classificada()]
+    html = renderizar_jornal(mats, date(2026, 4, 30))
+    assert "2 matérias relevantes" in html
+
+
+def test_renderiza_com_url_canonica_tem_canonical_e_og():
+    html = renderizar_jornal(
+        [_materia_classificada()],
+        date(2026, 4, 30),
+        url_canonica="https://pub-xxx.r2.dev/jornal/2026-04-30.html",
+    )
+    assert (
+        '<link rel="canonical" href="https://pub-xxx.r2.dev/jornal/2026-04-30.html">'
+        in html
+    )
+    assert (
+        '<meta property="og:url" content="https://pub-xxx.r2.dev/jornal/2026-04-30.html">'
+        in html
+    )
+    assert (
+        '<meta property="og:title" content="Observatório Roraima — 30 de abril de 2026">'
+        in html
+    )
+    assert '<meta property="og:type" content="article">' in html
+    assert '<meta name="twitter:card" content="summary">' in html
+
+
+def test_renderiza_sem_url_canonica_nao_tem_canonical():
+    html = renderizar_jornal([_materia_classificada()], date(2026, 4, 30))
+    assert 'rel="canonical"' not in html
+    assert 'property="og:' not in html
+
+
+def test_renderiza_tem_favicon_inline():
+    html = renderizar_jornal([_materia_classificada()], date(2026, 4, 30))
+    assert '<link rel="icon" href="data:image/svg+xml,' in html
+
+
+# =============================================================
+# Cloudflare Web Analytics (Ciclo 12) — beacon condicional via env
+# =============================================================
+
+
+def test_renderiza_com_token_emite_beacon_analytics(monkeypatch):
+    monkeypatch.setenv("CF_ANALYTICS_TOKEN", "tok-abc123")
+    html = renderizar_jornal([_materia_classificada()], date(2026, 4, 30))
+    assert "static.cloudflareinsights.com/beacon.min.js" in html
+    assert "tok-abc123" in html
+
+
+def test_renderiza_sem_token_nao_emite_beacon(monkeypatch):
+    monkeypatch.delenv("CF_ANALYTICS_TOKEN", raising=False)
+    html = renderizar_jornal([_materia_classificada()], date(2026, 4, 30))
+    assert "cloudflareinsights" not in html
+
+
+def test_renderiza_tem_skip_link_e_main_conteudo():
+    """Acessibilidade: skip-link no topo + <main id="conteudo"> (padrão da home)."""
+    html = renderizar_jornal([_materia_classificada()], date(2026, 4, 30))
+    assert '<a class="skip-link" href="#conteudo">' in html
+    assert 'id="conteudo"' in html

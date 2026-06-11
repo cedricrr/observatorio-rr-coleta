@@ -190,6 +190,44 @@ def test_upload_sem_cache_control_nao_inclui_header(mocker, tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Listagem de chaves (Ciclo 12 — sitemap e migração de domínio)
+# ---------------------------------------------------------------------------
+
+
+def test_listar_concatena_paginas_do_paginator(mocker):
+    """listar() usa o paginator de list_objects_v2 e concatena as chaves de todas as páginas."""
+    r2, fake_s3 = _make_client(mocker)
+    paginator = mocker.MagicMock()
+    fake_s3.get_paginator.return_value = paginator
+    paginator.paginate.return_value = [
+        {"Contents": [{"Key": "jornal/2026-06-01.html"}, {"Key": "jornal/2026-06-01.json"}]},
+        {"Contents": [{"Key": "jornal/index.html"}]},
+    ]
+
+    chaves = r2.listar("jornal/")
+
+    assert chaves == [
+        "jornal/2026-06-01.html",
+        "jornal/2026-06-01.json",
+        "jornal/index.html",
+    ]
+    fake_s3.get_paginator.assert_called_once_with("list_objects_v2")
+    paginator.paginate.assert_called_once_with(
+        Bucket="observatorio-diarios", Prefix="jornal/"
+    )
+
+
+def test_listar_retorna_vazio_quando_prefixo_nao_tem_objetos(mocker):
+    """Página sem 'Contents' (bucket/prefixo vazio) não pode quebrar."""
+    r2, fake_s3 = _make_client(mocker)
+    paginator = mocker.MagicMock()
+    fake_s3.get_paginator.return_value = paginator
+    paginator.paginate.return_value = [{}]
+
+    assert r2.listar("nada/") == []
+
+
+# ---------------------------------------------------------------------------
 # Timeouts e retries (Ciclo 10.7b)
 # ---------------------------------------------------------------------------
 # Lote 2025 sofreu hangs também após uploads ao R2 (boto3/botocore), mesma
