@@ -42,6 +42,10 @@ Política editorial: a **coleta** não faz triagem (baixa tudo). A **classifica�
 .venv/bin/python -m scripts.cache_texto --backfill --orgao todas --retomar
 .venv/bin/python -m scripts.cache_texto --backfill --orgao mprr --dry-run
 
+# Indexação na busca (exigem SEARCH_API_URL/SEARCH_API_TOKEN no .env)
+.venv/bin/python -m scripts.backfill_indexacao --retomar      # carga histórica (texto/ → /indexar)
+.venv/bin/python -m scripts.indexar_diaria --data hoje --fonte todas  # usado pelo Actions
+
 # Migração de domínio público (one-shot do cutover p/ observatoriorr.com.br)
 .venv/bin/python -m scripts.migrar_dominio --dominio-antigo <r2.dev> --dominio-novo <novo> --dry-run
 ```

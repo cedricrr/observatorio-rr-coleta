@@ -80,6 +80,24 @@ jobs:
                      -m "Run ID: ${{ github.run_id }}"
           git push
 
+      # Depois do commit: falha aqui sinaliza (job vermelho) sem afetar o
+      # arquivamento. Recupera via re-run ou backfill_indexacao --retomar.
+      - name: Extrair texto e indexar busca
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_DOMAIN: ${{ secrets.R2_PUBLIC_DOMAIN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          SEARCH_API_URL: ${{ secrets.SEARCH_API_URL }}
+          SEARCH_API_TOKEN: ${{ secrets.SEARCH_API_TOKEN }}
+        run: |
+          if [ -z "$SEARCH_API_URL" ]; then
+            echo "SEARCH_API_URL não configurada — busca ainda não implantada, pulando."
+            exit 0
+          fi
+          python -m scripts.indexar_diaria --data hoje --fonte todas
+
   # 06 UTC (2h Roraima): gera o editorial (coleta inline via dedupe + classifica)
   # e publica HTML + sidecar + índice no R2. Também é o caminho do disparo manual.
   publicacao:
@@ -144,6 +162,26 @@ jobs:
                      -m "Publicação agendada (06 UTC / 2h Roraima)." \
                      -m "Run ID: ${{ github.run_id }}"
           git push
+
+      # Depois do commit/publicação: idempotente (dedupe no texto/, overwrite
+      # por id no Solr) — repetir nos três jobs não duplica nada.
+      - name: Extrair texto e indexar busca
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_DOMAIN: ${{ secrets.R2_PUBLIC_DOMAIN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          SEARCH_API_URL: ${{ secrets.SEARCH_API_URL }}
+          SEARCH_API_TOKEN: ${{ secrets.SEARCH_API_TOKEN }}
+        run: |
+          if [ -z "$SEARCH_API_URL" ]; then
+            echo "SEARCH_API_URL não configurada — busca ainda não implantada, pulando."
+            exit 0
+          fi
+          data="${{ github.event.inputs.data || 'hoje' }}"
+          fonte="${{ github.event.inputs.fonte || 'todas' }}"
+          python -m scripts.indexar_diaria --data "$data" --fonte "$fonte"
 
   # 12 UTC (8h Roraima): segunda tentativa. Só roda se a edição do dia ainda
   # não estiver publicada no R2 (jornal/<data>.html). Evita reprocessar e
@@ -228,3 +266,21 @@ jobs:
                      -m "Segunda tentativa (12 UTC / 8h Roraima)." \
                      -m "Run ID: ${{ github.run_id }}"
           git push
+
+      # Roda mesmo quando o retry foi dispensado (published=true): garante o
+      # índice caso a janela das 06 UTC tenha publicado mas falhado ao indexar.
+      - name: Extrair texto e indexar busca
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_DOMAIN: ${{ secrets.R2_PUBLIC_DOMAIN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          SEARCH_API_URL: ${{ secrets.SEARCH_API_URL }}
+          SEARCH_API_TOKEN: ${{ secrets.SEARCH_API_TOKEN }}
+        run: |
+          if [ -z "$SEARCH_API_URL" ]; then
+            echo "SEARCH_API_URL não configurada — busca ainda não implantada, pulando."
+            exit 0
+          fi
+          python -m scripts.indexar_diaria --data hoje --fonte todas
