@@ -26,6 +26,7 @@ from scripts.r2_client import R2Client
 from scripts.renderizar import renderizar_jornal
 from scripts.segmentar import Materia, segmentar_materias
 from scripts.sidecar import montar_sidecar
+from scripts.validador_sensivel import aplicar_filtro_sensivel
 
 logger = logging.getLogger(__name__)
 
@@ -91,12 +92,21 @@ def processar_chave(
     for materia in materias_filtradas:
         try:
             m_classif = classificar_materia(materia, cliente)
-            classificadas.append(m_classif)
         except Exception as e:
             logger.warning(
                 f"Classificação falhou para matéria {materia.tipo}: {e}"
             )
             continue
+        # Defesa em profundidade (incidente 2026-06-10, ECA art. 143):
+        # filtro determinístico de termos sensíveis DEPOIS do RLM e ANTES
+        # de qualquer renderização — não depende do classificador acertar.
+        m_final = aplicar_filtro_sensivel(m_classif)
+        if m_final is not m_classif:
+            logger.warning(
+                f"Filtro sensível despublicou matéria {materia.tipo} "
+                f"(proteção a menores)"
+            )
+        classificadas.append(m_final)
     return classificadas
 
 

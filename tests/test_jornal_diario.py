@@ -408,3 +408,77 @@ def test_sidecar_vazio_quando_pipeline_nao_produziu_materias(
     sidecar = _json.loads(html_path.with_suffix(".json").read_text())
     assert sidecar["total_relevantes"] == 0
     assert sidecar["materias"] == []
+
+
+# =============================================================
+# GRUPO F — Filtro sensível integrado (Fase 3, incidente 2026-06-10)
+# =============================================================
+# A fixture mocka classificar_materia mas NÃO aplicar_filtro_sensivel:
+# o validador determinístico REAL roda dentro de processar_chave. Isso
+# garante que mesmo um classificador que marca relevante=True não passa
+# matéria sensível adiante (ECA art. 143).
+
+
+def test_processar_chave_aplica_filtro_sensivel_apos_classificar(mock_pipeline):
+    from scripts.classificar import CATEGORIA_PROTECAO_MENOR
+
+    sensivel = _materia_classificada(
+        orgao="MPRR", manchete="MP apura caso em Bonfim", relevante=True,
+    )
+    sensivel.texto = (
+        "Apurar estupro de vulnerável contra adolescente de 13 anos "
+        "na comarca de Bonfim."
+    )
+    mock_pipeline["filtrar_materias"].return_value = [sensivel]
+    # classificador (mock identidade) devolve relevante=True — o filtro
+    # determinístico precisa derrubar mesmo assim.
+
+    materias = jd.processar_chave(
+        "mprr/x.pdf", "MPRR", mock_pipeline["r2_instance"], MagicMock(),
+    )
+
+    assert len(materias) == 1
+    assert materias[0].relevante is False
+    assert materias[0].categoria == CATEGORIA_PROTECAO_MENOR
+    assert materias[0].manchete == ""
+    assert materias[0].resumo == ""
+    assert materias[0].tags == []
+
+
+def test_processar_chave_filtro_sensivel_nao_afeta_materia_normal(mock_pipeline):
+    normal = _materia_classificada(
+        orgao="MPRR", manchete="Contrato de limpeza", relevante=True,
+    )
+    mock_pipeline["filtrar_materias"].return_value = [normal]
+
+    materias = jd.processar_chave(
+        "mprr/x.pdf", "MPRR", mock_pipeline["r2_instance"], MagicMock(),
+    )
+
+    assert len(materias) == 1
+    assert materias[0].relevante is True
+    assert materias[0].manchete == "Contrato de limpeza"
+
+
+def test_materia_sensivel_fica_fora_do_sidecar_e_do_html(mock_pipeline, tmp_path):
+    import json as _json
+
+    sensivel = _materia_classificada(
+        orgao="MPRR", manchete="SENSIVEL", relevante=True,
+    )
+    sensivel.texto = "Acompanhar adolescente de 14 anos em Bonfim."
+    normal = _materia_classificada(
+        orgao="MPRR", manchete="NORMAL", relevante=True,
+    )
+    mock_pipeline["filtrar_materias"].return_value = [sensivel, normal]
+
+    html_path = gerar_jornal_diario(
+        date(2026, 4, 30), fontes=["MPRR"], output_dir=tmp_path,
+    )
+
+    sidecar = _json.loads(html_path.with_suffix(".json").read_text())
+    assert sidecar["total_relevantes"] == 1
+    assert [m["manchete"] for m in sidecar["materias"]] == ["NORMAL"]
+    html = html_path.read_text(encoding="utf-8")
+    assert "SENSIVEL" not in html
+    assert "adolescente" not in html

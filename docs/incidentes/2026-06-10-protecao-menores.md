@@ -93,9 +93,48 @@ a camada que não depende do RLM acertar é a Fase 3. Suíte completa verde
 Limite conhecido: a regra do prompt depende do modelo obedecer. A Fase 3
 adiciona o validador determinístico independente do RLM.
 
-## Fase 3 — Defesa em profundidade (validador independente)
+## Fase 3 — Defesa em profundidade (validador independente) (2026-06-10)
 
-_Pendente._
+Novo `scripts/validador_sensivel.py` — camada determinística que NÃO
+depende do RLM acertar:
+
+- `casar_termo_sensivel(materia) -> str | None`: avalia regras de regex
+  sobre texto + resumo + manchete + tags (superset do mínimo texto/resumo
+  — qualquer campo renderizável pode expor a vítima), em texto
+  **normalizado sem acentos** (extração de PDF pode perdê-los) e
+  case-insensitive. Retorna o nome da regra que casou (a Fase 4 usa isso
+  no relatório).
+- `aplicar_filtro_sensivel(materia) -> Materia`: com match, força
+  `relevante=False`, `categoria="protecao_menor"` e zera
+  manchete/resumo/tags/valor (função pura via `dataclasses.replace`,
+  idempotente). Sem match, devolve a matéria inalterada.
+
+Regras: estupro; abuso/exploração sexual; pornografia infantil;
+importunação sexual; vulnerabilidade + criança/adolescente; menor com
+idade exata; violência física contra menor; adoção/guarda + menor;
+destituição do poder familiar; segredo de justiça; medida protetiva +
+menor; iniciais anonimizadas ("J. da S. L.", case-sensitive, exige
+espaço entre iniciais). Mitigações de falso positivo testadas: "menor
+preço" (licitação), "adoção de medidas" (burocrês), "S.A." (sociedade
+anônima), "contrato por 5 anos". Política fail-closed: na dúvida,
+despublica.
+
+Integração: chamado em `jornal_diario.processar_chave` DEPOIS de
+`classificar_materia` e ANTES de qualquer renderização — funil comum dos
+dois caminhos (diário e backfill de publicação). Loga warning quando
+despublica.
+
+Testes: `tests/test_validador_sensivel.py` (48 testes: 17 textos
+sensíveis parametrizados ×2, campos além do texto, controles de falso
+positivo, idempotência, pureza, robustez a acentos/caixa) + GRUPO F em
+`tests/test_jornal_diario.py` (3 testes de integração com o validador
+REAL rodando — classificador mockado devolvendo relevante=True não passa
+matéria sensível). Suíte completa: 582 verdes, ruff limpo.
+
+**Replay contra o incidente real**: aplicado às matérias da cópia de
+auditoria de 2026-05-29, o validador casa as duas matérias despublicadas
+("vulneravel + menor" e "estupro") e não toca o contrato TJRR da mesma
+edição.
 
 ## Fase 4 — Reparação histórica
 
