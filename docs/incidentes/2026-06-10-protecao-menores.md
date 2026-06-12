@@ -136,6 +136,76 @@ auditoria de 2026-05-29, o validador casa as duas matérias despublicadas
 ("vulneravel + menor" e "estupro") e não toca o contrato TJRR da mesma
 edição.
 
-## Fase 4 — Reparação histórica
+## Fase 4 — Reparação histórica (2026-06-11)
 
-_Pendente._
+### Auditoria (somente leitura)
+
+Novo `scripts/auditar_historico.py`: varre todos os sidecars publicados
+no R2 (`jornal/AAAA-MM-DD.json` — fonte da verdade do que está no ar) e
+aplica `casar_termo_sensivel` (Fase 3) a cada matéria. Resultado:
+**268 edições / 883 matérias auditadas, 52 achados, 0 erros**. (O total
+de diários coletados é maior — ~1,3 mil PDFs — mas só 268 edições têm
+camada editorial publicada; o restante não tem o que despublicar.)
+Relatório completo (com manchetes) em `data/incidentes/` (gitignored).
+
+Análise dos 52: ~10 com menor vítima identificável ou crime sexual
+(inclui o caso conhecido de 17/05, edição 2026-02-24); ~11 de menores em
+contexto coletivo/política pública; ~31 falsos positivos para fins do
+ECA na regra de iniciais (adultos investigados anonimizados pelo MP e
+razões sociais com iniciais, verificado por amostragem).
+
+### Decisão editorial (2026-06-11)
+
+**Marcação conservadora em lote**: NÃO julgar caso a caso agora. Todas
+as 52 saem do ar provisoriamente; o status default passa a ser "fora do
+ar" enquanto consulta externa (jurídica e editorial) não classifica
+individualmente. Racional: na dúvida, despublicar — reverter é trabalho
+de minutos (snapshots completos); manter exposto não é reversível.
+
+### Execução (`scripts/despublicar_lote.py`)
+
+Dois estágios com gate de confirmação manual entre eles:
+
+1. `--preparar` (nada sobe): valida o relatório (exatamente 52 achados),
+   re-deriva os matches com o MESMO validador da auditoria e cruza com o
+   relatório (qualquer discrepância aborta); grava snapshots por matéria
+   (estado completo + `relevante=False` + `motivo_despublicacao=
+   "fase4-conservadora-20260611"` + `data_despublicacao` + termo casado,
+   com sha256 no manifest) e snapshots de rollback por edição (sidecar e
+   HTML originais); monta sidecars novos e re-renderiza os HTMLs em
+   staging local. Falha de render → aborta sem tocar o R2.
+2. `--executar`: sobe o staging com **rollback automático** (re-upload
+   dos originais) se qualquer upload falhar; regenera índice e páginas
+   de diários; grava relatório de execução.
+
+Nota de design: a matéria despublicada SAI do sidecar público (não fica
+nele com `relevante=False`) — o sidecar é público e só contém relevantes
+por contrato (`agregar_destaques_recentes` não checa o campo); mantê-la
+ali manteria a exposição. O registro `relevante=False` + motivo + data
+vive no snapshot local, nunca no R2.
+
+Resultado: **52 matérias despublicadas em 39 edições; 81 arquivos
+publicados** (39 sidecars + 39 HTMLs + index + 2 páginas de diários);
+0 já estavam fora do ar; 0 erros; sem necessidade de rollback.
+
+### Validação pós-publicação
+
+Após ≥30s de propagação, curl em **5 edições amostradas aleatoriamente**
+(2026-03-23, 2026-02-24, 2025-10-09, 2026-03-12, 2025-10-01): nenhuma
+manchete despublicada visível — 5/5 limpas. Home validada com
+`grep -iE "estupro|vulnerável|adolescente.*(11|12|13|14|15|16|17).*ano"`
+→ vazio.
+
+### Pendências após a Fase 4
+
+- **Consulta externa** (advogado / colegas do MP) e decisão individual
+  sobre cada uma das 52 — em especial os ~31 falsos positivos de
+  iniciais (adultos/empresas) e os ~11 casos coletivos/política pública,
+  que são candidatos a republicação. Republicar = restaurar a matéria do
+  snapshot ao sidecar e re-renderizar (mesmo mecanismo, sentido inverso).
+- **Refinar a regra de iniciais** do validador (Fase 3) para não casar
+  razões sociais ("J. W. Serviços Ltda") — hoje ela suprime matérias
+  legítimas de contratos/desmatamento no pipeline diário (fail-closed).
+- **Camada de busca** (`texto/` no R2 + Solr): indexa texto integral dos
+  PDFs e está fora do escopo das 4 fases — decidir se o filtro sensível
+  se aplica.
