@@ -48,22 +48,35 @@ def test_discover_retorna_dict_com_campos_corretos_em_200(mocker):
     }
 
 
-@pytest.mark.parametrize("status", [301, 401, 403, 404, 500, 502, 503])
-def test_discover_retorna_none_em_qualquer_status_nao_200(mocker, status):
+@pytest.mark.parametrize("status", [301, 401, 403, 404])
+def test_discover_retorna_none_em_status_de_ausencia(mocker, status):
+    """3xx/4xx = diário não existe naquela URL — ausência real, não erro."""
     mocker.patch("requests.head", return_value=_resp(status))
     assert discover(date(2026, 4, 30)) is None
 
 
-def test_discover_retorna_none_em_timeout(mocker):
+@pytest.mark.parametrize("status", [500, 502, 503])
+def test_discover_levanta_em_erro_de_servidor(mocker, status):
+    """5xx = servidor com problema — deve virar 'erro' re-rodável no backfill,
+    nunca 'sem_diario' silencioso."""
+    mocker.patch("requests.head", return_value=_resp(status))
+    with pytest.raises(requests.HTTPError):
+        discover(date(2026, 4, 30))
+
+
+def test_discover_propaga_timeout(mocker):
+    """Timeout NÃO é ausência de diário — propaga para o chamador marcar 'erro'."""
     mocker.patch("requests.head", side_effect=requests.Timeout("timed out"))
 
-    assert discover(date(2026, 4, 30)) is None
+    with pytest.raises(requests.Timeout):
+        discover(date(2026, 4, 30))
 
 
-def test_discover_retorna_none_em_connection_error(mocker):
+def test_discover_propaga_connection_error(mocker):
     mocker.patch("requests.head", side_effect=requests.ConnectionError("no route"))
 
-    assert discover(date(2026, 4, 30)) is None
+    with pytest.raises(requests.ConnectionError):
+        discover(date(2026, 4, 30))
 
 
 def test_discover_usa_user_agent_observatorio(mocker):
