@@ -144,6 +144,8 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CF_ANALYTICS_TOKEN: ${{ secrets.CF_ANALYTICS_TOKEN }}
+          # sem esta env o publicar regenera a home SEM o painel/página de busca
+          SEARCH_API_URL: ${{ secrets.SEARCH_API_URL }}
         run: |
           data="${{ github.event.inputs.data || 'hoje' }}"
           python -m scripts.publicar --data "$data"
@@ -249,6 +251,8 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CF_ANALYTICS_TOKEN: ${{ secrets.CF_ANALYTICS_TOKEN }}
+          # sem esta env o publicar regenera a home SEM o painel/página de busca
+          SEARCH_API_URL: ${{ secrets.SEARCH_API_URL }}
         run: python -m scripts.publicar --data hoje
 
       - name: Commit dos JSONs novos
