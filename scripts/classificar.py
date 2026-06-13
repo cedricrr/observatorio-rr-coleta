@@ -269,6 +269,20 @@ def classificar_materia(
             tags=[],
         )
 
+    # Haiku 4.5 (e variantes) devolve manchete/resumo/tags null em matérias
+    # de rotina (relevante=False). Como esses campos editoriais não são
+    # renderizados quando a matéria é descartada, coagimos null→vazio antes
+    # de validar — assim a matéria é classificada como não-relevante em vez
+    # de ser perdida na validação de schema. A coerção vale só para
+    # relevante=False: matéria relevante sem manchete continua sendo erro.
+    if dados.get("relevante") is False:
+        if dados.get("manchete") is None:
+            dados["manchete"] = ""
+        if dados.get("resumo") is None:
+            dados["resumo"] = ""
+        if dados.get("tags") is None:
+            dados["tags"] = []
+
     _validar_dados_classificacao(dados)
 
     return replace(

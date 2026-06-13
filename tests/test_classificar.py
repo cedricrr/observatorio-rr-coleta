@@ -126,6 +126,46 @@ def test_classifica_aceita_valor_rs_none():
     assert materia.valor_rs is None
 
 
+def test_relevante_false_com_campos_editoriais_null_e_coagido():
+    """Haiku 4.5 devolve manchete/resumo/tags null em matérias de rotina
+    (relevante=False). Como esses campos não são renderizados quando a
+    matéria é descartada, o endurecimento coage null→vazio em vez de
+    falhar a validação e perder o sinal de classificação."""
+    dados = {
+        "relevante": False,
+        "categoria": "Outros",
+        "manchete": None,
+        "resumo": None,
+        "valor_rs": None,
+        "tags": None,
+    }
+    cliente = _cliente_mock_com_resposta(dados)
+    materia_out = classificar_materia(_materia(tipo="EXTRATO_CONTRATO"), cliente)
+
+    assert materia_out.relevante is False
+    assert materia_out.categoria == "Outros"
+    assert materia_out.manchete == ""
+    assert materia_out.resumo == ""
+    assert materia_out.tags == []
+
+
+def test_relevante_true_com_manchete_null_ainda_levanta_valueerror():
+    """A coerção vale só para relevante=False. Matéria relevante com
+    manchete null é erro de verdade (ia pro jornal sem título) e deve
+    continuar falhando."""
+    dados = {
+        "relevante": True,
+        "categoria": "Outros",
+        "manchete": None,
+        "resumo": "y",
+        "valor_rs": None,
+        "tags": [],
+    }
+    cliente = _cliente_mock_com_resposta(dados)
+    with pytest.raises(ValueError, match="manchete"):
+        classificar_materia(_materia(), cliente)
+
+
 # ---------------------------------------------------------------------------
 # GRUPO B — Função pura
 # ---------------------------------------------------------------------------
