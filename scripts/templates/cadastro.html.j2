@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liberar resultados · Observatório Roraima</title>
+    <meta name="robots" content="noindex">
+    {% if url_canonica %}
+    <link rel="canonical" href="{{ url_canonica }}">
+    {% endif %}
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23c8102e'/%3E%3Ctext x='16' y='24' font-family='Georgia,serif' font-size='22' font-weight='bold' text-anchor='middle' fill='%23fafafa'%3EO%3C/text%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,400;9..144,0,600;9..144,0,700;9..144,1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cor-primaria: #1a1a1a;
+            --cor-texto: #2c2c2c;
+            --cor-secundaria: #666;
+            --cor-fundo: #fafafa;
+            --cor-divisa: #e0e0e0;
+            --cor-rule: #c8102e;
+            --max-largura: 760px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--cor-fundo);
+            color: var(--cor-texto);
+            line-height: 1.5;
+            padding: 0 1rem;
+        }
+
+        a { color: inherit; }
+
+        .pagina {
+            max-width: var(--max-largura);
+            margin: 0 auto;
+            padding: 2rem 0 4rem;
+            position: relative;
+        }
+
+        header.masthead {
+            text-align: center;
+            border-bottom: 3px double var(--cor-primaria);
+            padding-bottom: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .masthead .kicker {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--cor-secundaria);
+            margin-bottom: 0.4rem;
+        }
+
+        .masthead h1 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--cor-primaria);
+        }
+
+        /* fundo: placeholders fictícios sob blur, atrás do card */
+        #placeholders {
+            position: relative;
+        }
+
+        #placeholders .ph {
+            border-bottom: 1px solid var(--cor-divisa);
+            padding: 1.1rem 0;
+            font-size: 0.95rem;
+            color: var(--cor-secundaria);
+            filter: blur(6px) saturate(0.7);
+            user-select: none;
+            pointer-events: none;
+        }
+
+        #card-cadastro {
+            position: relative;
+            margin: -8rem auto 0;
+            max-width: 460px;
+            background: #fff;
+            border: 1.5px solid var(--cor-primaria);
+            border-radius: 6px;
+            padding: 1.6rem;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        #card-cadastro h2 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 1.3rem;
+            color: var(--cor-primaria);
+            margin-bottom: 0.3rem;
+        }
+
+        #card-cadastro p.contexto {
+            font-size: 0.9rem;
+            color: var(--cor-secundaria);
+            margin-bottom: 1.1rem;
+        }
+
+        #form-lead label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin: 0.9rem 0 0.25rem;
+        }
+
+        #form-lead .justificativa {
+            font-weight: 400;
+            color: var(--cor-secundaria);
+        }
+
+        #form-lead input[type="text"],
+        #form-lead input[type="email"],
+        #form-lead input[type="tel"] {
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--cor-divisa);
+            border-radius: 4px;
+        }
+
+        #form-lead .consent {
+            display: flex;
+            gap: 0.6rem;
+            align-items: flex-start;
+            margin: 1rem 0 0;
+        }
+
+        #form-lead .consent input { margin-top: 0.25rem; }
+
+        #form-lead .consent label {
+            display: inline;
+            font-weight: 400;
+            font-size: 0.8rem;
+            color: var(--cor-secundaria);
+            margin: 0;
+        }
+
+        #form-lead .privacidade-link {
+            font-size: 0.78rem;
+            color: var(--cor-secundaria);
+            margin-top: 0.9rem;
+        }
+
+        button.principal {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 1.1rem;
+            padding: 0.8rem 1.4rem;
+            background: var(--cor-primaria);
+            color: var(--cor-fundo);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button.principal:hover { background: var(--cor-rule); }
+
+        .sem-cartao {
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--cor-secundaria);
+            margin-top: 0.6rem;
+        }
+
+        #aviso { font-size: 0.85rem; color: var(--cor-rule); margin-top: 0.6rem; }
+
+        .oculto { display: none !important; }
+
+        footer {
+            margin-top: 3rem;
+            border-top: 3px double var(--cor-primaria);
+            padding-top: 1rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--cor-secundaria);
+        }
+    </style>
+</head>
+<body>
+    <div class="pagina">
+        <header class="masthead">
+            <p class="kicker">Observatório Roraima</p>
+            <h1>Resultados completos</h1>
+        </header>
+
+        <main id="conteudo">
+            <div id="placeholders" aria-hidden="true"></div>
+
+            <div id="card-cadastro">
+                <h2 id="titulo-gate">Veja todas as ocorrências</h2>
+                <p class="contexto" id="contexto-gate">Acesso gratuito à lista completa de resultados da busca.</p>
+
+                <form id="form-lead">
+                    <label for="campo-nome">Nome *</label>
+                    <input type="text" id="campo-nome" name="nome" maxlength="120" required autocomplete="name">
+
+                    <label for="campo-email">E-mail *</label>
+                    <input type="email" id="campo-email" name="email" required autocomplete="email">
+
+                    <label for="campo-telefone">Telefone <span class="justificativa">(opcional — para receber alertas por WhatsApp)</span></label>
+                    <input type="tel" id="campo-telefone" name="telefone" maxlength="40" autocomplete="tel" placeholder="(95) 9XXXX-XXXX">
+
+                    <div class="consent">
+                        <input type="checkbox" id="consentimento-relatorios" required>
+                        <label for="consentimento-relatorios">Autorizo o Observatório Roraima a usar meus dados para entregar os resultados desta busca e enviar relatórios e notificações de novas publicações, nos termos da LGPD. Posso revogar este consentimento a qualquer momento.</label>
+                    </div>
+                    <div class="consent">
+                        <input type="checkbox" id="consentimento-ofertas">
+                        <label for="consentimento-ofertas">Aceito receber também comunicações sobre produtos e serviços do Observatório Roraima. (opcional)</label>
+                    </div>
+
+                    <p class="privacidade-link">Como tratamos seus dados: <a href="{{ url_privacidade }}">política de privacidade</a>.</p>
+
+                    <button class="principal" type="submit">Liberar resultados completos</button>
+                    <p class="sem-cartao">Acesso gratuito. Sem cartão de crédito.</p>
+                    <p id="aviso" class="oculto"></p>
+                </form>
+            </div>
+        </main>
+
+        <footer>
+            <p>Observatório Roraima · <a href="{{ url_indice }}">Início</a> · <a href="{{ url_busca }}">Busca</a> · <a href="{{ url_privacidade }}">Privacidade</a></p>
+        </footer>
+    </div>
+
+    <script>
+    (function () {
+        "use strict";
+        var API = "{{ busca_api_url }}";
+        var CHAVE_TOKEN = "obs_busca_token";
+        var CHAVE_TERMOS = "obs_termos_sessao";
+        var CHAVE_SESSAO = "obs_sessao_id";
+        // fundo SEMPRE fictício — nenhum dado real chega a esta página
+        var TEXTO_FICTICIO = "Conteúdo reservado — órgão, data da edição e o trecho com o termo aparecem aqui após o acesso gratuito. ";
+
+        var params = new URLSearchParams(window.location.search);
+        var termo = (params.get("q") || "").trim();
+        var total = parseInt(params.get("total") || "0", 10);
+
+        function sessaoId() {
+            var id = sessionStorage.getItem(CHAVE_SESSAO);
+            if (!id) {
+                id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+                sessionStorage.setItem(CHAVE_SESSAO, id);
+            }
+            return id;
+        }
+
+        function evento(tipo) {
+            if (!navigator.sendBeacon) { return; }
+            var corpo = JSON.stringify({ tipo: tipo, sessao: sessaoId() });
+            navigator.sendBeacon(API + "/eventos", new Blob([corpo], { type: "application/json" }));
+        }
+
+        function termosDaSessao() {
+            var termos = [];
+            try { termos = JSON.parse(sessionStorage.getItem(CHAVE_TERMOS)) || []; } catch (e) { termos = []; }
+            if (!termos.length && termo) { termos = [termo]; }
+            return termos;
+        }
+
+        // fundo com placeholders fictícios
+        (function () {
+            var alvo = document.getElementById("placeholders");
+            for (var i = 0; i < 5; i++) {
+                var div = document.createElement("div");
+                div.className = "ph";
+                var repeticoes = 1 + Math.floor(Math.random() * 3);
+                div.textContent = new Array(repeticoes + 1).join(TEXTO_FICTICIO);
+                alvo.appendChild(div);
+            }
+        })();
+
+        if (termo) {
+            document.getElementById("titulo-gate").textContent =
+                "Veja todas as ocorrências de “" + termo + "”";
+        }
+        if (total > 0) {
+            document.getElementById("contexto-gate").textContent =
+                total + " diário(s) com resultados aguardando — acesso gratuito à lista completa.";
+        }
+
+        document.getElementById("form-lead").addEventListener("submit", function (ev) {
+            ev.preventDefault();
+            var aviso = document.getElementById("aviso");
+            aviso.classList.add("oculto");
+            var corpo = {
+                nome: document.getElementById("campo-nome").value.trim(),
+                email: document.getElementById("campo-email").value.trim(),
+                telefone: document.getElementById("campo-telefone").value.trim() || null,
+                consentimentos: {
+                    relatorios: document.getElementById("consentimento-relatorios").checked,
+                    ofertas: document.getElementById("consentimento-ofertas").checked
+                },
+                termos: termosDaSessao()
+            };
+            fetch(API + "/leads", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(corpo)
+            }).then(function (resp) {
+                if (!resp.ok) { throw new Error("HTTP " + resp.status); }
+                return resp.json();
+            }).then(function (dados) {
+                localStorage.setItem(CHAVE_TOKEN, dados.token);
+                evento("cadastro_ok");
+                window.location.href = "busca.html?q=" + encodeURIComponent(termo);
+            }).catch(function () {
+                aviso.textContent = "Não foi possível concluir o cadastro. Confira os campos e tente de novo.";
+                aviso.classList.remove("oculto");
+            });
+        });
+    })();
+    </script>
+    {% if analytics_token %}
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_token }}"}'></script>
+    {% endif %}
+</body>
+</html>

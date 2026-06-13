@@ -52,6 +52,8 @@ CHAVE_DIARIOS = {
 }
 CHAVE_SOBRE = "jornal/sobre.html"
 CHAVE_BUSCA = "jornal/busca.html"
+CHAVE_CADASTRO = "jornal/cadastro.html"
+CHAVE_PRIVACIDADE = "jornal/privacidade.html"
 _META_FONTE = {
     "mprr": {
         "nome": "MPRR",
@@ -171,6 +173,7 @@ def gerar_pagina_diarios(
         orgao_nome=meta["nome"],
         orgao_subtitulo=meta["subtitulo"],
         mostrar_numero=meta["mostrar_numero"],
+        url_privacidade=_url_privacidade(public_domain),
         anos=anos,
         total=len(edicoes),
         url_indice=url_indice,
@@ -258,6 +261,13 @@ def _url_busca(public_domain: str | None) -> str:
     return "busca.html"
 
 
+def _url_privacidade(public_domain: str | None) -> str:
+    """URL da política de privacidade (absoluta se houver domínio)."""
+    if public_domain:
+        return f"https://{public_domain}/{CHAVE_PRIVACIDADE}"
+    return "privacidade.html"
+
+
 def gerar_pagina_busca(public_domain: str | None, api_url: str) -> str:
     """Renderiza a página de busca (form + JS que consome a API no Railway)."""
     url_indice = (
@@ -266,6 +276,7 @@ def gerar_pagina_busca(public_domain: str | None, api_url: str) -> str:
     template = _env.get_template("busca.html.j2")
     return template.render(
         busca_api_url=api_url.rstrip("/"),
+        url_privacidade=_url_privacidade(public_domain),
         url_indice=url_indice,
         url_sobre=_url_sobre(public_domain),
         url_canonica=(
@@ -295,6 +306,68 @@ def publicar_pagina_busca(html: str, r2: R2Client) -> str:
     return url
 
 
+def _publicar_html_mutavel(html: str, chave: str, r2: R2Client, descricao: str) -> str:
+    """Sobe um HTML mutável (max-age curto) para a chave dada."""
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".html", delete=False, encoding="utf-8",
+    ) as tmp:
+        tmp.write(html)
+        tmp_path = Path(tmp.name)
+    try:
+        url = r2.upload(
+            tmp_path,
+            chave,
+            content_type=CONTENT_TYPE_HTML,
+            cache_control=CACHE_CONTROL_INDICE,
+        )
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    logger.info(f"{descricao} publicada: {url}")
+    return url
+
+
+def gerar_pagina_cadastro(public_domain: str | None, api_url: str) -> str:
+    """Renderiza a página exclusiva de cadastro (gate do funil — Sessão 13.4)."""
+    template = _env.get_template("cadastro.html.j2")
+    return template.render(
+        busca_api_url=api_url.rstrip("/"),
+        url_busca=_url_busca(public_domain),
+        url_privacidade=_url_privacidade(public_domain),
+        url_indice=(
+            f"https://{public_domain}/{CHAVE_INDICE}" if public_domain else "index.html"
+        ),
+        url_canonica=(
+            f"https://{public_domain}/{CHAVE_CADASTRO}" if public_domain else None
+        ),
+        analytics_token=_token_analytics(),
+    )
+
+
+def publicar_pagina_cadastro(html: str, r2: R2Client) -> str:
+    """Sobe a página de cadastro para jornal/cadastro.html no R2."""
+    return _publicar_html_mutavel(html, CHAVE_CADASTRO, r2, "Página de cadastro")
+
+
+def gerar_pagina_privacidade(public_domain: str | None = None) -> str:
+    """Renderiza a política de privacidade (LGPD — Sessão 13.4)."""
+    template = _env.get_template("privacidade.html.j2")
+    return template.render(
+        url_indice=(
+            f"https://{public_domain}/{CHAVE_INDICE}" if public_domain else "index.html"
+        ),
+        url_sobre=_url_sobre(public_domain),
+        url_canonica=(
+            f"https://{public_domain}/{CHAVE_PRIVACIDADE}" if public_domain else None
+        ),
+        analytics_token=_token_analytics(),
+    )
+
+
+def publicar_pagina_privacidade(html: str, r2: R2Client) -> str:
+    """Sobe a política de privacidade para jornal/privacidade.html no R2."""
+    return _publicar_html_mutavel(html, CHAVE_PRIVACIDADE, r2, "Política de privacidade")
+
+
 def gerar_pagina_sobre(public_domain: str | None = None) -> str:
     """Renderiza a página Sobre (identidade, independência, política editorial)."""
     url_indice = (
@@ -303,6 +376,7 @@ def gerar_pagina_sobre(public_domain: str | None = None) -> str:
     template = _env.get_template("sobre.html.j2")
     return template.render(
         url_indice=url_indice,
+        url_privacidade=_url_privacidade(public_domain),
         url_canonica=(
             f"https://{public_domain}/{CHAVE_SOBRE}" if public_domain else None
         ),
@@ -366,6 +440,7 @@ def gerar_indice(
         url_sobre=_url_sobre(public_domain),
         url_busca=_url_busca(public_domain) if _url_api_busca() else None,
         busca_api_url=(_url_api_busca() or "").rstrip("/") or None,
+        url_privacidade=_url_privacidade(public_domain),
         acervo=acervo,
         ano_inicio=min((f["ano_min"] for f in acervo), default=None),
         # Canonical da home é a RAIZ do domínio: a Transform Rule do
@@ -636,9 +711,11 @@ def publicar_tudo(
     public_domain = r2.public_domain if hasattr(r2, "public_domain") else None
     publicar_paginas_diarios(r2, diarios_dir, public_domain)
     publicar_pagina_sobre(gerar_pagina_sobre(public_domain), r2)
+    publicar_pagina_privacidade(gerar_pagina_privacidade(public_domain), r2)
     api_busca = _url_api_busca()
     if api_busca:
         publicar_pagina_busca(gerar_pagina_busca(public_domain, api_busca), r2)
+        publicar_pagina_cadastro(gerar_pagina_cadastro(public_domain, api_busca), r2)
     publicar_robots_e_sitemap(r2)
     html_indice = gerar_indice(
         diarios_dir, public_domain=public_domain, r2=r2,
@@ -684,10 +761,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.apenas_indice:
             publicar_paginas_diarios(r2, public_domain=r2.public_domain)
             publicar_pagina_sobre(gerar_pagina_sobre(r2.public_domain), r2)
+            publicar_pagina_privacidade(
+                gerar_pagina_privacidade(r2.public_domain), r2,
+            )
             api_busca = _url_api_busca()
             if api_busca:
                 publicar_pagina_busca(
                     gerar_pagina_busca(r2.public_domain, api_busca), r2,
+                )
+                publicar_pagina_cadastro(
+                    gerar_pagina_cadastro(r2.public_domain, api_busca), r2,
                 )
             publicar_robots_e_sitemap(r2)
             html = gerar_indice(public_domain=r2.public_domain, r2=r2)

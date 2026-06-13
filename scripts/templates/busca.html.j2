@@ -221,41 +221,21 @@
             margin-bottom: 1.2rem;
         }
 
-        #form-cadastro label {
-            display: block;
-            font-size: 0.82rem;
-            font-weight: 600;
-            margin: 0.9rem 0 0.25rem;
-        }
-
-        #form-cadastro input[type="email"],
-        #form-cadastro input[type="tel"] {
-            width: 100%;
-            font-family: 'Inter', sans-serif;
+        #placeholders .ph {
+            border-bottom: 1px solid var(--cor-divisa);
+            padding: 1.1rem 0;
             font-size: 0.95rem;
-            padding: 0.6rem 0.8rem;
-            border: 1px solid var(--cor-divisa);
-            border-radius: 4px;
-        }
-
-        #form-cadastro .consent {
-            display: flex;
-            gap: 0.6rem;
-            align-items: flex-start;
-            margin: 1.1rem 0;
-        }
-
-        #form-cadastro .consent input { margin-top: 0.25rem; }
-
-        #form-cadastro .consent label {
-            display: inline;
-            font-weight: 400;
-            font-size: 0.82rem;
             color: var(--cor-secundaria);
-            margin: 0;
+            filter: blur(6px) saturate(0.7);
+            user-select: none;
+            pointer-events: none;
         }
 
-        #aviso-cadastro { font-size: 0.85rem; color: var(--cor-rule); margin-top: 0.6rem; }
+        a.botao-link {
+            display: inline-block;
+            text-decoration: none;
+            text-align: center;
+        }
 
         #botao-mais { margin: 1.5rem auto; display: block; }
 
@@ -302,29 +282,17 @@
                 <button id="botao-mais" class="principal oculto" type="button">Carregar mais resultados</button>
             </div>
 
+            <div id="placeholders" class="oculto" aria-hidden="true"></div>
+
             <div id="gate" class="oculto">
                 <h2>Veja todas as ocorrências</h2>
-                <p class="explicacao">A lista completa é gratuita — basta deixar um e-mail para acesso e para receber novidades do Observatório.</p>
-                <form id="form-cadastro">
-                    <label for="campo-email">E-mail *</label>
-                    <input type="email" id="campo-email" name="email" required autocomplete="email">
-
-                    <label for="campo-telefone">Telefone (opcional)</label>
-                    <input type="tel" id="campo-telefone" name="telefone" maxlength="40" autocomplete="tel" placeholder="+55 95 9XXXX-XXXX">
-
-                    <div class="consent">
-                        <input type="checkbox" id="campo-consentimento" name="consentimento" required>
-                        <label for="campo-consentimento">Autorizo o uso do meu e-mail e telefone para comunicações do Observatório Roraima, nos termos da LGPD. O consentimento pode ser revogado a qualquer momento.</label>
-                    </div>
-
-                    <button class="principal" type="submit">Liberar lista completa</button>
-                    <p id="aviso-cadastro" class="oculto"></p>
-                </form>
+                <p class="explicacao"><span id="gate-contador"></span> O acesso completo é gratuito — sem cartão de crédito.</p>
+                <a id="botao-cadastro" class="principal botao-link" href="cadastro.html">Visualizar mais resultados</a>
             </div>
         </main>
 
         <footer>
-            <p>Observatório Roraima · Diário editorial automatizado · <a href="{{ url_sobre }}">Sobre</a></p>
+            <p>Observatório Roraima · Diário editorial automatizado · <a href="{{ url_sobre }}">Sobre</a> · <a href="{{ url_privacidade }}">Privacidade</a></p>
         </footer>
     </div>
 
@@ -333,15 +301,45 @@
         "use strict";
         var API = "{{ busca_api_url }}";
         var CHAVE_TOKEN = "obs_busca_token";
+        var CHAVE_TERMOS = "obs_termos_sessao";
+        var CHAVE_SESSAO = "obs_sessao_id";
+        // texto dos placeholders: SEMPRE fictício — nenhum dado real
+        // bloqueado chega ao cliente (o corte é no servidor)
+        var TEXTO_FICTICIO = "Conteúdo reservado — órgão, data da edição e o trecho com o termo aparecem aqui após o acesso gratuito. ";
         var consultaAtual = "";
         var offsetAtual = 0;
         var TAMANHO_PAGINA = 20;
+        var MAX_PLACEHOLDERS = 6;
 
         var el = function (id) { return document.getElementById(id); };
         var mostrar = function (id) { el(id).classList.remove("oculto"); };
         var esconder = function (id) { el(id).classList.add("oculto"); };
 
         function token() { return localStorage.getItem(CHAVE_TOKEN); }
+
+        function sessaoId() {
+            var id = sessionStorage.getItem(CHAVE_SESSAO);
+            if (!id) {
+                id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+                sessionStorage.setItem(CHAVE_SESSAO, id);
+            }
+            return id;
+        }
+
+        function evento(tipo) {
+            if (!navigator.sendBeacon) { return; }
+            var corpo = JSON.stringify({ tipo: tipo, sessao: sessaoId() });
+            navigator.sendBeacon(API + "/eventos", new Blob([corpo], { type: "application/json" }));
+        }
+
+        function guardarTermo(q) {
+            var termos = [];
+            try { termos = JSON.parse(sessionStorage.getItem(CHAVE_TERMOS)) || []; } catch (e) { termos = []; }
+            if (termos.indexOf(q) === -1) {
+                termos.push(q);
+                sessionStorage.setItem(CHAVE_TERMOS, JSON.stringify(termos.slice(-50)));
+            }
+        }
 
         function formatarData(iso) {
             var p = iso.split("-");
@@ -383,6 +381,20 @@
             return art;
         }
 
+        function gerarPlaceholders(quantos) {
+            var alvo = el("placeholders");
+            alvo.textContent = "";
+            var n = Math.min(quantos, MAX_PLACEHOLDERS);
+            for (var i = 0; i < n; i++) {
+                var div = document.createElement("div");
+                div.className = "ph";
+                var repeticoes = 1 + Math.floor(Math.random() * 3);
+                div.textContent = new Array(repeticoes + 1).join(TEXTO_FICTICIO);
+                alvo.appendChild(div);
+            }
+            mostrar("placeholders");
+        }
+
         function renderResposta(corpo, anexar) {
             var lista = el("lista-resultados");
             if (!anexar) { lista.textContent = ""; }
@@ -393,6 +405,7 @@
             if (corpo.total_diarios === 0) {
                 esconder("area-resultados");
                 esconder("gate");
+                esconder("placeholders");
                 mostrar("estado-vazio");
                 return;
             }
@@ -407,10 +420,18 @@
             mostrar("area-resultados");
 
             if (corpo.parcial && corpo.total_diarios > corpo.resultados.length) {
+                var ocultos = corpo.total_ocorrencias - corpo.resultados.length;
+                if (ocultos < 1) { ocultos = corpo.total_diarios - corpo.resultados.length; }
+                gerarPlaceholders(corpo.total_diarios - corpo.resultados.length);
+                el("gate-contador").textContent = "Mais " + ocultos + " ocorrências encontradas.";
+                el("botao-cadastro").href = "cadastro.html?q=" +
+                    encodeURIComponent(consultaAtual) + "&total=" + corpo.total_diarios;
                 mostrar("gate");
                 esconder("botao-mais");
+                evento("gate_view");
             } else {
                 esconder("gate");
+                esconder("placeholders");
                 var exibidos = offsetAtual + corpo.resultados.length;
                 if (!corpo.parcial && exibidos < corpo.total_diarios) {
                     mostrar("botao-mais");
@@ -423,7 +444,11 @@
         function buscar(q, offset, anexar, jaTentouSemToken) {
             esconder("estado-vazio");
             esconder("estado-erro");
-            if (!anexar) { esconder("area-resultados"); esconder("gate"); }
+            if (!anexar) {
+                esconder("area-resultados");
+                esconder("gate");
+                esconder("placeholders");
+            }
             mostrar("estado-carregando");
 
             var headers = { "Content-Type": "application/json" };
@@ -456,7 +481,11 @@
             ev.preventDefault();
             consultaAtual = el("campo-busca").value.trim();
             offsetAtual = 0;
-            if (consultaAtual) { buscar(consultaAtual, 0, false, false); }
+            if (consultaAtual) {
+                guardarTermo(consultaAtual);
+                evento("busca_exec");
+                buscar(consultaAtual, 0, false, false);
+            }
         });
 
         el("botao-mais").addEventListener("click", function () {
@@ -464,33 +493,14 @@
             buscar(consultaAtual, offsetAtual, true, false);
         });
 
-        el("form-cadastro").addEventListener("submit", function (ev) {
-            ev.preventDefault();
-            var aviso = el("aviso-cadastro");
-            aviso.classList.add("oculto");
-            var corpo = {
-                email: el("campo-email").value.trim(),
-                telefone: el("campo-telefone").value.trim() || null,
-                consentimento: el("campo-consentimento").checked,
-                origem_busca: consultaAtual || null
-            };
-            fetch(API + "/leads", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(corpo)
-            }).then(function (resp) {
-                if (!resp.ok) { throw new Error("HTTP " + resp.status); }
-                return resp.json();
-            }).then(function (dados) {
-                localStorage.setItem(CHAVE_TOKEN, dados.token);
-                esconder("gate");
-                offsetAtual = 0;
-                buscar(consultaAtual, 0, false, false);
-            }).catch(function () {
-                aviso.textContent = "Não foi possível concluir o cadastro. Confira o e-mail e tente de novo.";
-                aviso.classList.remove("oculto");
-            });
-        });
+        // chegando do cadastro: ?q= refaz a busca já desbloqueada
+        var params = new URLSearchParams(window.location.search);
+        var qInicial = (params.get("q") || "").trim();
+        if (qInicial) {
+            el("campo-busca").value = qInicial;
+            consultaAtual = qInicial;
+            buscar(qInicial, 0, false, false);
+        }
     })();
     </script>
     {% if analytics_token %}

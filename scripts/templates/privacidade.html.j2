@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidade · Observatório Roraima</title>
+    <meta name="description" content="Como o Observatório Roraima trata dados pessoais: finalidades, retenção, revogação de consentimento e desindexação da busca.">
+    {% if url_canonica %}
+    <link rel="canonical" href="{{ url_canonica }}">
+    {% endif %}
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23c8102e'/%3E%3Ctext x='16' y='24' font-family='Georgia,serif' font-size='22' font-weight='bold' text-anchor='middle' fill='%23fafafa'%3EO%3C/text%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,400;9..144,0,600;9..144,0,700;9..144,1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cor-primaria: #1a1a1a;
+            --cor-texto: #2c2c2c;
+            --cor-secundaria: #666;
+            --cor-fundo: #fafafa;
+            --cor-divisa: #e0e0e0;
+            --cor-rule: #c8102e;
+            --max-largura: 720px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--cor-fundo);
+            color: var(--cor-texto);
+            line-height: 1.65;
+            padding: 0 1rem;
+        }
+
+        a { color: inherit; }
+
+        .skip-link {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            background: var(--cor-primaria);
+            color: var(--cor-fundo);
+            padding: 0.6rem 1rem;
+            font-size: 0.85rem;
+            z-index: 100;
+        }
+
+        .skip-link:focus { left: 0.5rem; top: 0.5rem; }
+
+        .pagina {
+            max-width: var(--max-largura);
+            margin: 0 auto;
+            padding: 2rem 0 4rem;
+        }
+
+        header.masthead {
+            text-align: center;
+            border-bottom: 3px double var(--cor-primaria);
+            padding-bottom: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .masthead .kicker {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--cor-secundaria);
+            margin-bottom: 0.4rem;
+        }
+
+        .masthead h1 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--cor-primaria);
+        }
+
+        .masthead .voltar {
+            display: inline-block;
+            margin-top: 0.6rem;
+            font-size: 0.85rem;
+            color: var(--cor-secundaria);
+            text-decoration: none;
+        }
+
+        .masthead .voltar:hover { color: var(--cor-rule); }
+
+        main h2 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 1.25rem;
+            color: var(--cor-primaria);
+            margin: 1.8rem 0 0.5rem;
+        }
+
+        main p, main li { font-size: 0.95rem; margin-bottom: 0.7rem; }
+
+        main ul { padding-left: 1.3rem; }
+
+        footer {
+            margin-top: 3rem;
+            border-top: 3px double var(--cor-primaria);
+            padding-top: 1rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--cor-secundaria);
+        }
+    </style>
+</head>
+<body>
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+    <div class="pagina">
+        <header class="masthead">
+            <p class="kicker">Observatório Roraima</p>
+            <h1>Política de Privacidade</h1>
+            <a class="voltar" href="{{ url_indice }}">← Voltar ao jornal</a>
+        </header>
+
+        <main id="conteudo">
+            <h2>Quem somos (controlador)</h2>
+            <p>O <strong>Observatório Roraima</strong> é um projeto cívico independente que
+            arquiva e torna pesquisáveis os diários oficiais do Ministério Público (MPRR)
+            e do Tribunal de Justiça (TJRR) de Roraima. O Observatório é o controlador dos
+            dados pessoais descritos nesta política, tratados nos termos da Lei Geral de
+            Proteção de Dados — <strong>LGPD</strong> (Lei 13.709/2018). Mais sobre o
+            projeto na página <a href="{{ url_sobre }}">Sobre</a>.</p>
+
+            <h2>Quais dados coletamos e para quê</h2>
+            <p>No cadastro de acesso à busca, coletamos <strong>nome</strong> e
+            <strong>e-mail</strong> (obrigatórios), <strong>telefone</strong> (opcional) e
+            os <strong>termos buscados na sua sessão</strong>. As finalidades são
+            separadas por consentimento:</p>
+            <ul>
+                <li><strong>Entrega de resultados, relatórios e notificações</strong> de
+                novas publicações — consentimento obrigatório para liberar o acesso
+                completo;</li>
+                <li><strong>Comunicações sobre produtos e serviços (ofertas)</strong> do
+                Observatório — apenas mediante opt-in separado, desmarcado por padrão.</li>
+            </ul>
+            <p>Também registramos eventos anônimos de navegação (visita à home, busca
+            executada, cadastro concluído) com um identificador de sessão aleatório,
+            <strong>sem IP, sem identificação do navegador e sem dado pessoal</strong> —
+            servem só para medir o funil de uso do serviço.</p>
+
+            <h2>Onde os dados ficam e por quanto tempo (retenção)</h2>
+            <p>Os dados de cadastro ficam em banco de dados privado, fora dos arquivos
+            públicos do projeto e fora de qualquer repositório de código. A retenção dura
+            enquanto o seu cadastro estiver ativo; com a revogação do consentimento, os
+            dados são excluídos, preservando-se apenas o registro mínimo exigido para
+            comprovar o consentimento dado (data e hash técnico), conforme a LGPD.</p>
+
+            <h2>Como revogar o consentimento</h2>
+            <p>Você pode revogar qualquer consentimento, pedir acesso, correção ou
+            exclusão dos seus dados a qualquer momento, escrevendo para o canal de
+            contato indicado na página <a href="{{ url_sobre }}">Sobre</a>. A revogação
+            das ofertas não afeta o acesso à busca.</p>
+
+            <h2>Dados publicados em diários oficiais e desindexação</h2>
+            <p>A busca do Observatório indexa o texto integral de documentos
+            <strong>públicos e oficiais</strong>, publicados pelos próprios órgãos
+            (MPRR e TJRR). O Observatório não cria esses dados — arquiva a fonte primária
+            e facilita a consulta. Se um diário oficial menciona seu nome e você entende
+            que a localização pela busca lhe causa dano desproporcional, pode pedir a
+            <strong>desindexação</strong> do conteúdo (remoção da camada de busca, sem
+            alteração do documento oficial) pelo mesmo canal de contato da página
+            <a href="{{ url_sobre }}">Sobre</a>. Cada pedido é avaliado caso a caso,
+            ponderando o interesse público da informação.</p>
+
+            <h2>O que não fazemos</h2>
+            <ul>
+                <li>Não vendemos nem compartilhamos seus dados com terceiros;</li>
+                <li>Não usamos seus dados para fins diferentes dos consentidos;</li>
+                <li>Não publicamos dados de cadastro em nenhuma área pública do site.</li>
+            </ul>
+        </main>
+
+        <footer>
+            <p>Observatório Roraima · Projeto cívico independente · <a href="{{ url_sobre }}">Sobre</a></p>
+        </footer>
+    </div>
+    {% if analytics_token %}
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_token }}"}'></script>
+    {% endif %}
+</body>
+</html>

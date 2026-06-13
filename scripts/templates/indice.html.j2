@@ -694,7 +694,7 @@
         {% endif %}
 
         <footer class="jornal-rodape">
-            <p>Observatório Roraima · Diário editorial automatizado · <a href="{{ url_sobre }}">Sobre</a></p>
+            <p>Observatório Roraima · Diário editorial automatizado · <a href="{{ url_sobre }}">Sobre</a> · <a href="{{ url_privacidade }}">Privacidade</a></p>
         </footer>
     </div>
 {% if url_busca and busca_api_url %}
@@ -702,6 +702,25 @@
 (function () {
     "use strict";
     var API = "{{ busca_api_url }}";
+    var CHAVE_SESSAO = "obs_sessao_id";
+
+    function sessaoId() {
+        var id = sessionStorage.getItem(CHAVE_SESSAO);
+        if (!id) {
+            id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+            sessionStorage.setItem(CHAVE_SESSAO, id);
+        }
+        return id;
+    }
+
+    function evento(tipo) {
+        if (!navigator.sendBeacon) { return; }
+        var corpo = JSON.stringify({ tipo: tipo, sessao: sessaoId() });
+        navigator.sendBeacon(API + "/eventos", new Blob([corpo], { type: "application/json" }));
+    }
+
+    evento("home_view");
+
     var botao = document.getElementById("abrir-interesse");
     var form = document.getElementById("form-interesse-estado");
     if (!botao || !form) { return; }
