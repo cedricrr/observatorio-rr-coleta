@@ -12,6 +12,7 @@ from starlette.requests import Request
 
 LIMITE_BUSCAR = "30/minute"
 LIMITE_LEADS = "5/minute"
+LIMITE_EVENTOS = "60/minute"
 
 
 def _ip_cliente(request: Request) -> str:

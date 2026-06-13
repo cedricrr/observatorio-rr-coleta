@@ -97,6 +97,28 @@ def gravar_lead(
         )
 
 
+DDL_TABELA_EVENTOS = """
+CREATE TABLE IF NOT EXISTS eventos (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  tipo TEXT NOT NULL,
+  sessao_id TEXT NOT NULL,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+)
+"""
+
+SQL_INSERT_EVENTO = """
+INSERT INTO eventos (tipo, sessao_id) VALUES (%(tipo)s, %(sessao_id)s)
+"""
+
+
+def gravar_evento(database_url: str, *, tipo: str, sessao_id: str) -> None:
+    """Grava um evento de funil. Pré-consentimento: NUNCA acrescentar
+    coluna de dado pessoal aqui (IP, user agent etc.)."""
+    with psycopg.connect(database_url) as conn:
+        conn.execute(DDL_TABELA_EVENTOS)
+        conn.execute(SQL_INSERT_EVENTO, {"tipo": tipo, "sessao_id": sessao_id})
+
+
 def ping_db(database_url: str) -> bool:
     """True se o Postgres responde."""
     try:
