@@ -577,6 +577,7 @@ def test_publicar_tudo_chama_publicar_jornal_depois_publicar_indice(
         "jornal/diarios-mprr.html",
         "jornal/diarios-tjrr.html",
         "jornal/sobre.html",
+        "jornal/privacidade.html",
         "robots.txt",
         "sitemap.xml",
         "jornal/index.html",
@@ -606,6 +607,7 @@ def test_publicar_tudo_publica_sidecar_quando_arquivo_existe(
         "jornal/diarios-mprr.html",
         "jornal/diarios-tjrr.html",
         "jornal/sobre.html",
+        "jornal/privacidade.html",
         "robots.txt",
         "sitemap.xml",
         "jornal/index.html",
@@ -1294,13 +1296,14 @@ def test_gerar_pagina_busca_embute_api_e_canonical():
     )
 
 
-def test_gerar_pagina_busca_tem_form_estados_e_lgpd():
+def test_gerar_pagina_busca_tem_form_estados_e_gate():
+    # Sessão 13.4: o cadastro saiu daqui (página exclusiva); o gate
+    # visual aponta para cadastro.html
     from scripts.publicar import gerar_pagina_busca
     html = gerar_pagina_busca(public_domain=None, api_url="https://api.example")
     assert 'id="form-busca"' in html
-    assert 'id="form-cadastro"' in html          # gate freemium
-    assert 'type="checkbox"' in html             # consentimento LGPD
-    assert "consentimento" in html
+    assert 'id="gate"' in html
+    assert 'id="botao-cadastro"' in html
     assert "X-Sessao" in html                    # JS envia o token de sessão
     assert "obs_busca_token" in html             # localStorage
     assert '<a class="skip-link" href="#conteudo">' in html
@@ -1505,3 +1508,157 @@ def test_home_sem_search_api_url_nao_emite_modulos_de_busca(tmp_path, monkeypatc
     assert 'id="zona-busca"' not in html
     assert 'id="form-interesse-estado"' not in html
     assert 'id="reforco-busca"' not in html
+
+
+# =============================================================
+# GRUPO Sessão 13.4 — gate visual, cadastro e privacidade
+# =============================================================
+
+_BUSCA_API = "https://api.example"
+
+
+def _html_busca() -> str:
+    from scripts.publicar import gerar_pagina_busca
+    return gerar_pagina_busca(None, _BUSCA_API)
+
+
+def test_busca_sem_formulario_inline():
+    # o gate inline da Sessão 11 sai; cadastro vira página exclusiva
+    html = _html_busca()
+    assert 'id="form-cadastro"' not in html
+    assert "Liberar lista completa" not in html
+
+
+def test_busca_gate_com_placeholders_e_botao_para_cadastro():
+    html = _html_busca()
+    assert 'id="gate"' in html
+    assert 'id="placeholders"' in html
+    assert "blur(" in html
+    assert "cadastro.html?q=" in html
+    assert "Visualizar mais resultados" in html
+    assert "encontradas" in html  # contador "mais N ocorrências encontradas"
+
+
+def test_busca_placeholders_sem_dado_real():
+    # placeholders são texto fictício gerado no cliente — o JS nunca
+    # injeta campos de resultado neles
+    html = _html_busca()
+    assert "TEXTO_FICTICIO" in html
+
+
+def test_busca_acumula_termos_em_session_storage():
+    html = _html_busca()
+    assert "sessionStorage" in html
+    assert "obs_termos_sessao" in html
+
+
+def test_busca_dispara_eventos_de_funil():
+    html = _html_busca()
+    assert "sendBeacon" in html
+    assert '"busca_exec"' in html
+    assert '"gate_view"' in html
+    assert "/eventos" in html
+
+
+def test_busca_mantem_fluxo_de_sessao_existente():
+    html = _html_busca()
+    assert "X-Sessao" in html
+    assert "obs_busca_token" in html
+    assert "Carregar mais" in html
+
+
+def _html_cadastro() -> str:
+    from scripts.publicar import gerar_pagina_cadastro
+    return gerar_pagina_cadastro(None, _BUSCA_API)
+
+
+def test_cadastro_estrutura_do_card():
+    html = _html_cadastro()
+    assert 'id="campo-nome"' in html
+    assert 'id="campo-email"' in html
+    assert 'id="campo-telefone"' in html
+    assert "alertas por WhatsApp" in html
+    assert "Liberar resultados completos" in html
+    assert "Acesso gratuito. Sem cartão de crédito." in html
+    assert 'href="privacidade.html"' in html
+
+
+def test_cadastro_checkbox_relatorios_obrigatorio_ofertas_opcional():
+    html = _html_cadastro()
+    tag_relatorios = html.split('id="consentimento-relatorios"')[1].split(">")[0]
+    tag_ofertas = html.split('id="consentimento-ofertas"')[1].split(">")[0]
+    assert "required" in tag_relatorios
+    assert "required" not in tag_ofertas
+    assert "checked" not in tag_ofertas  # opt-in desmarcado por padrão
+
+
+def test_cadastro_javascript_fecha_o_funil():
+    html = _html_cadastro()
+    assert "/leads" in html
+    assert "consentimentos" in html
+    assert "obs_termos_sessao" in html   # termos da sessão vão no POST
+    assert "obs_busca_token" in html     # token gravado p/ desbloquear
+    assert "busca.html?q=" in html       # redireciona de volta desbloqueado
+    assert '"cadastro_ok"' in html
+    assert "sendBeacon" in html
+
+
+def test_cadastro_fundo_com_placeholders_fictícios():
+    html = _html_cadastro()
+    assert "blur(" in html
+    assert "TEXTO_FICTICIO" in html
+
+
+def test_publicar_pagina_cadastro_chave_e_cache_curto(mock_r2):
+    from scripts.publicar import publicar_pagina_cadastro
+    publicar_pagina_cadastro("<html></html>", mock_r2)
+    args, kwargs = mock_r2.upload.call_args
+    assert args[1] == "jornal/cadastro.html"
+    assert kwargs["cache_control"] == "public, max-age=300"
+
+
+def test_gerar_pagina_privacidade_conteudo_minimo():
+    from scripts.publicar import gerar_pagina_privacidade
+    html = gerar_pagina_privacidade(public_domain=None)
+    assert "Observatório Roraima" in html       # controlador identificado
+    assert "LGPD" in html
+    assert "revoga" in html.lower()             # canal de revogação
+    assert "desindexação" in html.lower()       # diários oficiais
+    assert "ofertas" in html.lower()            # finalidade do opt-in separado
+    assert "retenção" in html.lower() or "retidos" in html.lower()
+
+
+def test_publicar_pagina_privacidade_chave_e_cache_curto(mock_r2):
+    from scripts.publicar import publicar_pagina_privacidade
+    publicar_pagina_privacidade("<html></html>", mock_r2)
+    args, kwargs = mock_r2.upload.call_args
+    assert args[1] == "jornal/privacidade.html"
+    assert kwargs["cache_control"] == "public, max-age=300"
+
+
+def test_rodape_de_todas_as_paginas_linka_privacidade(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEARCH_API_URL", _BUSCA_API)
+    from scripts.publicar import gerar_pagina_diarios, gerar_pagina_sobre
+
+    _criar_jsons_completos(tmp_path, {"mprr": [_reg("2026-05-15", numero=961)]})
+
+    paginas = {
+        "indice": gerar_indice(tmp_path, public_domain=None),
+        "sobre": gerar_pagina_sobre(public_domain=None),
+        "diarios": gerar_pagina_diarios("mprr", tmp_path, public_domain=None),
+        "busca": _html_busca(),
+        "cadastro": _html_cadastro(),
+    }
+    for nome, html in paginas.items():
+        assert "privacidade.html" in html, f"rodapé sem privacidade: {nome}"
+
+
+def test_home_dispara_home_view(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEARCH_API_URL", _BUSCA_API)
+    html = gerar_indice(tmp_path, public_domain=None)
+    assert "sendBeacon" in html
+    assert '"home_view"' in html
+
+    monkeypatch.delenv("SEARCH_API_URL")
+    html_sem = gerar_indice(tmp_path, public_domain=None)
+    assert "home_view" not in html_sem

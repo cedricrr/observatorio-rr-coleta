@@ -479,3 +479,9 @@ def test_bloco_conversao_ausente_sem_url_busca():
     materia = _materia_classificada()
     html = renderizar_jornal([materia], date(2026, 5, 15))
     assert "cta-busca" not in html
+
+
+def test_rodape_da_edicao_linka_privacidade():
+    materia = _materia_classificada()
+    html = renderizar_jornal([materia], date(2026, 5, 15))
+    assert "privacidade.html" in html
