@@ -22,9 +22,14 @@ def test_health_solr_fora_retorna_503(client, mocker):
 
 def test_leads_rate_limit_5_por_minuto(client, mocker):
     mocker.patch("app.rotas_leads.gravar_lead")
-    corpo = {"email": "fulano@example.com", "consentimento": True}
+    corpo = {
+        "email": "fulano@example.com",
+        "nome": "Fulano de Tal",
+        "consentimentos": {"relatorios": True},
+        "termos": [],
+    }
 
     codigos = [client.post("/leads", json=corpo).status_code for _ in range(6)]
 
-    assert codigos[:5] == [200] * 5
+    assert codigos[:5] == [201] * 5
     assert codigos[5] == 429
