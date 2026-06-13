@@ -337,3 +337,15 @@ def test_upsert_renova_campos_novos_no_conflito(mocker):
         "consentimento_em",
     ):
         assert coluna in trecho_update
+
+
+def test_interesse_por_outro_estado_grava_classe_interesse_estado(client, mocker):
+    gravar = mocker.patch("app.rotas_leads.gravar_lead")
+
+    corpo = corpo_valido(termos=["interesse_estado: Amazonas"])
+    resposta = client.post("/leads", json=corpo)
+
+    assert resposta.status_code == 201
+    kwargs = gravar.call_args.kwargs
+    assert kwargs["classe"] == "interesse_estado"
+    assert kwargs["termos_sessao"] == ["interesse_estado: Amazonas"]

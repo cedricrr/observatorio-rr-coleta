@@ -100,3 +100,17 @@ def test_vocabulario_nao_casa_por_substring_de_palavra():
     # "citação" dentro de "licitação" (palavra inteira)
     assert classificar_termos(["apresentação de empresa"]) == "geral"
     assert classificar_termos(["licitação"]) == "geral"
+
+
+# ---------------------------------------------------------------------------
+# Interesse por outros estados (microformulário da home — Sessão 13.3)
+# ---------------------------------------------------------------------------
+
+
+def test_prefixo_interesse_estado_classifica_interesse_estado():
+    assert classificar_termos(["interesse_estado: Amazonas"]) == "interesse_estado"
+
+
+def test_interesse_estado_tem_precedencia_sobre_as_demais_regras():
+    termos = ["interesse_estado: Pará", "intimação"]
+    assert classificar_termos(termos) == "interesse_estado"

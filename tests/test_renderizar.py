@@ -413,3 +413,69 @@ def test_renderiza_tem_skip_link_e_main_conteudo():
     html = renderizar_jornal([_materia_classificada()], date(2026, 4, 30))
     assert '<a class="skip-link" href="#conteudo">' in html
     assert 'id="conteudo"' in html
+
+
+# =============================================================
+# GRUPO Sessão 13.3 — ganchos para o acervo na notícia
+# =============================================================
+
+
+def test_tags_viram_links_de_busca_com_url_busca():
+    materia = _materia_classificada(tags=["Empresa XYZ Ltda"])
+    html = renderizar_jornal([materia], date(2026, 5, 15), url_busca="busca.html")
+    assert 'href="busca.html?q=Empresa%20XYZ%20Ltda"' in html
+
+
+def test_tags_continuam_spans_sem_url_busca():
+    materia = _materia_classificada(tags=["Empresa XYZ Ltda"])
+    html = renderizar_jornal([materia], date(2026, 5, 15))
+    assert "busca.html?q=" not in html
+    assert "Empresa XYZ Ltda" in html
+
+
+def test_bloco_acervo_presente_com_contagem():
+    materia = _materia_classificada(tags=["Empresa XYZ Ltda"])
+    html = renderizar_jornal(
+        [materia],
+        date(2026, 5, 15),
+        url_busca="busca.html",
+        ocorrencias_acervo={"Empresa XYZ Ltda": 12},
+    )
+    assert "Este assunto no acervo" in html
+    assert "12" in html
+
+
+def test_bloco_acervo_omitido_sem_contagem():
+    # falha do Solr no build → ocorrencias_acervo vazio → bloco omitido
+    materia = _materia_classificada(tags=["Empresa XYZ Ltda"])
+    html = renderizar_jornal(
+        [materia], date(2026, 5, 15), url_busca="busca.html",
+        ocorrencias_acervo={},
+    )
+    assert "Este assunto no acervo" not in html
+
+
+def test_bloco_conversao_varia_por_categoria():
+    contrato = _materia_classificada(categoria="Contratos e licitações")
+    concurso = _materia_classificada(
+        categoria="Concursos e delegações", valor_rs=None,
+        manchete="Convocados aprovados do concurso",
+    )
+    outro = _materia_classificada(
+        categoria="Atos normativos", valor_rs=None,
+        manchete="Nova resolução administrativa",
+    )
+
+    html_contrato = renderizar_jornal([contrato], date(2026, 5, 15), url_busca="busca.html")
+    html_concurso = renderizar_jornal([concurso], date(2026, 5, 15), url_busca="busca.html")
+    html_outro = renderizar_jornal([outro], date(2026, 5, 15), url_busca="busca.html")
+
+    assert "empresa" in html_contrato.split("cta-busca")[1][:300]
+    assert "seu nome" in html_concurso.split("cta-busca")[1][:300]
+    assert "OAB" in html_outro.split("cta-busca")[1][:300]
+
+
+def test_bloco_conversao_ausente_sem_url_busca():
+    materia = _materia_classificada()
+    html = renderizar_jornal([materia], date(2026, 5, 15))
+    assert "cta-busca" not in html

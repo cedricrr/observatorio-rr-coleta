@@ -1382,10 +1382,12 @@ def test_resumo_acervo_totais_e_anos_por_orgao(tmp_path):
         {
             "orgao": "MPRR", "total": 3, "total_formatado": "3",
             "ano_min": 2021, "ano_max": 2026,
+            "ultima_edicao_formatada": "05 JAN 2026",
         },
         {
             "orgao": "TJRR", "total": 1, "total_formatado": "1",
             "ano_min": 2022, "ano_max": 2022,
+            "ultima_edicao_formatada": "15 AGO 2022",
         },
     ]
 
@@ -1424,3 +1426,82 @@ def test_gerar_indice_sem_env_nao_tem_painel(tmp_path, monkeypatch):
     html = gerar_indice(tmp_path, public_domain="pub-xxx.r2.dev")
 
     assert 'class="painel-busca"' not in html  # CSS fica, o elemento não
+
+
+# =============================================================
+# GRUPO Sessão 13.3 — home com busca em destaque
+# =============================================================
+
+
+def test_home_zona_de_busca_antes_do_conteudo_editorial(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEARCH_API_URL", "https://api.example")
+    _criar_jsons(tmp_path, {"mprr": ["2026-05-15-961"]})
+
+    html = gerar_indice(tmp_path, public_domain=None)
+
+    assert 'id="zona-busca"' in html
+    assert html.index('id="zona-busca"') < html.index('id="conteudo"')
+    # form de busca em largura total apontando para a página de busca
+    zona = html[html.index('id="zona-busca"'):html.index('id="conteudo"')]
+    assert 'action="busca.html"' in zona
+    assert 'name="q"' in zona
+
+
+def test_home_contadores_refletem_acervo(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEARCH_API_URL", "https://api.example")
+    _criar_jsons_completos(tmp_path, {
+        "mprr": [_reg("2026-05-15", numero=961), _reg("2026-05-14", numero=960)],
+        "tjrr": [_reg("2026-05-13", fonte="tjrr")],
+    })
+
+    from scripts.publicar import resumo_acervo
+
+    resumo = resumo_acervo(tmp_path)
+    por_orgao = {r["orgao"]: r for r in resumo}
+    assert por_orgao["MPRR"]["total"] == 2
+    assert por_orgao["TJRR"]["total"] == 1
+    # contador novo do wireframe: data da última edição por órgão
+    assert "2026" in por_orgao["MPRR"]["ultima_edicao_formatada"]
+
+    html = gerar_indice(tmp_path, public_domain=None)
+    assert por_orgao["MPRR"]["ultima_edicao_formatada"] in html
+    assert por_orgao["TJRR"]["ultima_edicao_formatada"] in html
+
+
+def test_home_seletor_de_jurisdicao(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEARCH_API_URL", "https://api.example")
+    _criar_jsons(tmp_path, {"mprr": ["2026-05-15-961"]})
+
+    html = gerar_indice(tmp_path, public_domain=None)
+
+    zona = html[html.index('id="zona-busca"'):html.index('id="conteudo"')]
+    assert "Roraima" in zona
+    assert "Amazonas" in zona
+    assert "Pará" in zona
+    assert zona.count("Em breve") >= 2
+    assert "disabled" in zona
+    # microformulário de interesse por outros estados → POST /leads
+    assert 'id="form-interesse-estado"' in html
+    assert "interesse_estado:" in html
+    assert "https://api.example" in html  # JS precisa da URL da API
+
+
+def test_home_modulo_de_reforco_apos_o_editorial(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEARCH_API_URL", "https://api.example")
+    _criar_jsons(tmp_path, {"mprr": ["2026-05-15-961"]})
+
+    html = gerar_indice(tmp_path, public_domain=None)
+
+    assert 'id="reforco-busca"' in html
+    assert html.index('id="reforco-busca"') > html.index('id="conteudo"')
+
+
+def test_home_sem_search_api_url_nao_emite_modulos_de_busca(tmp_path, monkeypatch):
+    monkeypatch.delenv("SEARCH_API_URL", raising=False)
+    _criar_jsons(tmp_path, {"mprr": ["2026-05-15-961"]})
+
+    html = gerar_indice(tmp_path, public_domain=None)
+
+    assert 'id="zona-busca"' not in html
+    assert 'id="form-interesse-estado"' not in html
+    assert 'id="reforco-busca"' not in html
