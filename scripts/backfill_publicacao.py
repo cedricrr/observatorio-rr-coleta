@@ -232,7 +232,9 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     r2 = R2Client.from_env()
-    cliente = ClienteAnthropic(extended_thinking=False)
+    cliente = ClienteAnthropic(
+        model="claude-haiku-4-5-20251001", extended_thinking=False
+    )
 
     checkpoint = executar_backfill(
         args.diarios_dir, r2, cliente, args.output, checkpoint,

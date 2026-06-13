@@ -108,7 +108,7 @@ Há **dois caminhos** no orquestrador:
 
 ### Cliente Anthropic (`scripts/cliente_anthropic.py`)
 
-`ClienteAnthropic` encapsula a SDK. Default model `claude-sonnet-4-6`. **Pegadinha**: com `extended_thinking=True` a API exige `temperature=1`, então `temperature` só é enviado quando thinking está desligado. O orquestrador usa `extended_thinking=False`.
+`ClienteAnthropic` encapsula a SDK. Default model da classe `claude-sonnet-4-6`, mas o pipeline editorial sobrescreve para **`claude-haiku-4-5-20251001` (Haiku 4.5)** nos dois call sites de classificação de matérias (`jornal_diario.py` e `backfill_publicacao.py`). **Pegadinha**: com `extended_thinking=True` a API exige `temperature=1`, então `temperature` só é enviado quando thinking está desligado. O orquestrador usa `extended_thinking=False`.
 
 ## Backfill (`scripts/backfill.py`)
 

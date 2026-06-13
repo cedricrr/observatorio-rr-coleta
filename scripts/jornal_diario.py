@@ -171,7 +171,9 @@ def gerar_jornal_diario(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     r2 = R2Client.from_env()
-    cliente = ClienteAnthropic(extended_thinking=False)
+    cliente = ClienteAnthropic(
+        model="claude-haiku-4-5-20251001", extended_thinking=False
+    )
 
     todas_materias: list[Materia] = []
     for fonte in fontes:
