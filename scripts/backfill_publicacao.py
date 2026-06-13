@@ -26,7 +26,7 @@ from scripts.backfill import (
     marcar_processado,
 )
 from scripts.cliente_anthropic import ClienteAnthropic
-from scripts.jornal_diario import processar_chave
+from scripts.jornal_diario import ganchos_busca, processar_chave
 from scripts.publicar import (
     PREFIXO_R2,
     gerar_indice,
@@ -100,8 +100,10 @@ def processar_data(
     for fonte, chave in sorted(chaves_por_fonte.items()):
         materias.extend(processar_chave(chave, fonte, r2, cliente))
 
+    url_busca, ocorrencias = ganchos_busca(materias)
     html = renderizar_jornal(
         materias, data, url_canonica=r2.url_publica(chave_jornal(data)),
+        url_busca=url_busca, ocorrencias_acervo=ocorrencias,
     )
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{data.isoformat()}.html"

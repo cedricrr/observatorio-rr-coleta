@@ -192,6 +192,8 @@ def renderizar_jornal(
     data_edicao: date,
     num_edicao: int | None = None,
     url_canonica: str | None = None,
+    url_busca: str | None = None,
+    ocorrencias_acervo: dict[str, int] | None = None,
 ) -> str:
     """Renderiza HTML do jornal editorial a partir de matérias classificadas.
 
@@ -201,6 +203,12 @@ def renderizar_jornal(
 
     `url_canonica` (a URL pública da edição) habilita as tags canonical e
     Open Graph no <head>; sem ela o HTML sai sem metadados de publicação.
+
+    `url_busca` (Sessão 13.3) habilita os ganchos para o acervo: tags
+    viram links de busca e cada matéria ganha CTA por categoria.
+    `ocorrencias_acervo` (tag → total de diários) alimenta o bloco
+    "Este assunto no acervo"; vazio ou None omite o bloco (falha do
+    Solr no build nunca quebra a edição).
     """
     relevantes = [m for m in materias if m.relevante]
     materias_por_orgao = _agrupar_por_orgao(relevantes)
@@ -213,5 +221,7 @@ def renderizar_jornal(
         total_materias=len(relevantes),
         materias_por_orgao=materias_por_orgao,
         url_canonica=url_canonica,
+        url_busca=url_busca,
+        ocorrencias_acervo=ocorrencias_acervo or {},
         analytics_token=_token_analytics(),
     )

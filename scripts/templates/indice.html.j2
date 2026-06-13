@@ -429,6 +429,130 @@
                 padding-top: 0;
             }
         }
+
+        /* ============ Zona de busca (Sessão 13.3) ============ */
+        #zona-busca {
+            margin: 1.6rem 0 2rem;
+            padding-bottom: 1.6rem;
+            border-bottom: 1px solid var(--cor-divisa, #e0e0e0);
+        }
+
+        #zona-busca .posicionamento {
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 1.15rem;
+            color: var(--cor-primaria, #1a1a1a);
+            margin-bottom: 0.8rem;
+        }
+
+        #zona-busca .form-busca-home {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        #zona-busca .form-busca-home input[type="search"] {
+            flex: 1;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            padding: 0.7rem 1rem;
+            border: 1.5px solid var(--cor-primaria, #1a1a1a);
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        #zona-busca .form-busca-home button {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 0.7rem 1.4rem;
+            background: var(--cor-primaria, #1a1a1a);
+            color: #fafafa;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #zona-busca .jurisdicoes {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.8rem;
+            padding: 0;
+            font-size: 0.8rem;
+        }
+
+        #zona-busca .jurisdicoes li { display: inline-flex; }
+
+        #zona-busca .jurisdicoes .pilula {
+            font-family: 'JetBrains Mono', monospace;
+            padding: 0.25rem 0.7rem;
+            border: 1px solid var(--cor-divisa, #e0e0e0);
+            border-radius: 999px;
+            background: none;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        #zona-busca .jurisdicoes .ativa .pilula {
+            background: var(--cor-primaria, #1a1a1a);
+            color: #fafafa;
+            border-color: var(--cor-primaria, #1a1a1a);
+            cursor: default;
+        }
+
+        #zona-busca .jurisdicoes .pilula:disabled {
+            color: #8a99a8;
+            cursor: not-allowed;
+        }
+
+        #zona-busca .contadores-acervo {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem;
+            margin-top: 0.7rem;
+            padding: 0;
+            font-size: 0.78rem;
+            color: var(--cor-secundaria, #666);
+        }
+
+        #form-interesse-estado {
+            margin-top: 0.9rem;
+            padding: 0.9rem 1rem;
+            border: 1px solid var(--cor-divisa, #e0e0e0);
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        #form-interesse-estado input[type="text"],
+        #form-interesse-estado input[type="email"] {
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            padding: 0.45rem 0.7rem;
+            margin: 0.25rem 0 0.6rem;
+            border: 1px solid var(--cor-divisa, #e0e0e0);
+            border-radius: 4px;
+        }
+
+        #form-interesse-estado .consent {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-start;
+            margin: 0.4rem 0 0.8rem;
+            color: var(--cor-secundaria, #666);
+        }
+
+        #reforco-busca {
+            margin: 2.2rem 0 0;
+            padding: 1.2rem 1.4rem;
+            border: 1px solid var(--cor-divisa, #e0e0e0);
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+
+        .oculto { display: none !important; }
     </style>
 </head>
 <body>
@@ -441,6 +565,46 @@
                 {%- if data_ultima_formatada %}Última edição · {{ data_ultima_formatada }}{% else %}{{ total_edicoes }} {{ "edição" if total_edicoes == 1 else "edições" }}{% endif %}
             </p>
         </header>
+
+        {% if url_busca %}
+        <section id="zona-busca" aria-label="Busca no acervo de diários">
+            <p class="posicionamento">Tudo o que o poder público de Roraima publica nos diários oficiais, pesquisável por nome.</p>
+            <form class="form-busca-home" role="search" action="{{ url_busca }}" method="get">
+                <input type="search" name="q" maxlength="200" required
+                       placeholder="Pesquise um nome, empresa ou número de processo…"
+                       aria-label="Termo de busca">
+                <button type="submit">Buscar</button>
+            </form>
+            <ul class="jurisdicoes">
+                <li class="ativa"><span class="pilula">Roraima</span></li>
+                <li><button class="pilula" type="button" disabled>Amazonas · Em breve</button></li>
+                <li><button class="pilula" type="button" disabled>Pará · Em breve</button></li>
+                <li><button class="pilula" type="button" id="abrir-interesse" aria-expanded="false">Outros estados</button></li>
+            </ul>
+            {% if acervo %}
+            <ul class="contadores-acervo">
+                {% for f in acervo %}
+                <li><strong>{{ f.total_formatado }}</strong>&nbsp;edições do {{ f.orgao }} · última em {{ f.ultima_edicao_formatada }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            <form id="form-interesse-estado" class="oculto">
+                <p>Quer o Observatório no seu estado? Deixe seu contato e avisaremos quando chegarmos lá.</p>
+                <label for="interesse-uf">Estado</label>
+                <input type="text" id="interesse-uf" maxlength="40" required placeholder="Amazonas">
+                <label for="interesse-nome">Nome</label>
+                <input type="text" id="interesse-nome" maxlength="120" required autocomplete="name">
+                <label for="interesse-email">E-mail</label>
+                <input type="email" id="interesse-email" required autocomplete="email">
+                <div class="consent">
+                    <input type="checkbox" id="interesse-consentimento" required>
+                    <label for="interesse-consentimento">Autorizo o uso do meu e-mail para relatórios e notificações do Observatório Roraima, nos termos da LGPD.</label>
+                </div>
+                <button class="pilula" type="submit">Quero ser avisado</button>
+                <p id="interesse-aviso" role="status"></p>
+            </form>
+        </section>
+        {% endif %}
 
         <main id="conteudo">
         {% if hero and (hero.publicar | default(true)) %}
@@ -523,10 +687,52 @@
         </nav>
         </main>
 
+        {% if url_busca %}
+        <section id="reforco-busca">
+            <p>Procurando um nome específico? <a href="{{ url_busca }}">Pesquise no acervo completo de diários oficiais</a>{% if ano_inicio %} — edições desde {{ ano_inicio }}{% endif %}.</p>
+        </section>
+        {% endif %}
+
         <footer class="jornal-rodape">
             <p>Observatório Roraima · Diário editorial automatizado · <a href="{{ url_sobre }}">Sobre</a></p>
         </footer>
     </div>
+{% if url_busca and busca_api_url %}
+<script>
+(function () {
+    "use strict";
+    var API = "{{ busca_api_url }}";
+    var botao = document.getElementById("abrir-interesse");
+    var form = document.getElementById("form-interesse-estado");
+    if (!botao || !form) { return; }
+    botao.addEventListener("click", function () {
+        var aberto = !form.classList.toggle("oculto");
+        botao.setAttribute("aria-expanded", aberto ? "true" : "false");
+    });
+    form.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        var aviso = document.getElementById("interesse-aviso");
+        var corpo = {
+            nome: document.getElementById("interesse-nome").value.trim(),
+            email: document.getElementById("interesse-email").value.trim(),
+            consentimentos: { relatorios: document.getElementById("interesse-consentimento").checked },
+            termos: ["interesse_estado: " + document.getElementById("interesse-uf").value.trim()]
+        };
+        fetch(API + "/leads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(corpo)
+        }).then(function (resp) {
+            if (!resp.ok) { throw new Error("HTTP " + resp.status); }
+            form.reset();
+            aviso.textContent = "Obrigado! Avisaremos quando o Observatório chegar ao seu estado.";
+        }).catch(function () {
+            aviso.textContent = "Não foi possível enviar agora. Confira os campos e tente de novo.";
+        });
+    });
+})();
+</script>
+{% endif %}
 {% if analytics_token %}
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_token }}"}'></script>
 {% endif %}

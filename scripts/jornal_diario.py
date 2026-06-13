@@ -10,11 +10,13 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
 
+from scripts.acervo_busca import contar_diarios
 from scripts.baixar_pdf import baixar_pdf_do_r2
 from scripts.classificar import classificar_materia
 from scripts.cliente_anthropic import ClienteAnthropic
@@ -124,6 +126,26 @@ def _processar_fonte(
     return processar_chave(chave, fonte_codigo, r2, cliente)
 
 
+def ganchos_busca(materias: list[Materia]) -> tuple[str | None, dict[str, int]]:
+    """Ganchos pro acervo na edição (Sessão 13.3), gated por SEARCH_API_URL.
+
+    Sem a env: sem links de busca (a página nem é publicada). Com ela:
+    url relativa da página de busca + contagem de diários por primeira
+    tag das relevantes (cache por execução; falha vira omissão).
+    """
+    api_url = os.environ.get("SEARCH_API_URL")
+    if not api_url:
+        return None, {}
+    cache: dict[str, int] = {}
+    ocorrencias: dict[str, int] = {}
+    for m in materias:
+        if m.relevante and m.tags:
+            total = contar_diarios(m.tags[0], api_url, cache)
+            if total:
+                ocorrencias[m.tags[0]] = total
+    return "busca.html", ocorrencias
+
+
 def gerar_jornal_diario(
     data_edicao: date,
     fontes: list[str] | None = None,
@@ -159,7 +181,14 @@ def gerar_jornal_diario(
         logger.info(f"  {fonte}: {len(mats)} matérias classificadas")
 
     url_jornal = r2.url_publica(f"jornal/{data_edicao.isoformat()}.html")
-    html = renderizar_jornal(todas_materias, data_edicao, url_canonica=url_jornal)
+    url_busca, ocorrencias = ganchos_busca(todas_materias)
+    html = renderizar_jornal(
+        todas_materias,
+        data_edicao,
+        url_canonica=url_jornal,
+        url_busca=url_busca,
+        ocorrencias_acervo=ocorrencias,
+    )
 
     output_path = output_dir / f"{data_edicao.isoformat()}.html"
     output_path.write_text(html, encoding="utf-8")

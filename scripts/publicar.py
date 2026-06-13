@@ -215,12 +215,14 @@ def resumo_acervo(diarios_dir: Path) -> list[dict]:
         if not edicoes:
             continue
         anos = [e["data_edicao"].year for e in edicoes]
+        ultima = max(e["data_edicao"] for e in edicoes)
         resumo.append({
             "orgao": _META_FONTE[fonte]["nome"],
             "total": len(edicoes),
             "total_formatado": _formatar_milhar(len(edicoes)),
             "ano_min": min(anos),
             "ano_max": max(anos),
+            "ultima_edicao_formatada": _formatar_data_abrev(ultima.isoformat()),
         })
     return resumo
 
@@ -363,6 +365,7 @@ def gerar_indice(
         url_diarios_tjrr=_url_pagina_diarios("tjrr", public_domain),
         url_sobre=_url_sobre(public_domain),
         url_busca=_url_busca(public_domain) if _url_api_busca() else None,
+        busca_api_url=(_url_api_busca() or "").rstrip("/") or None,
         acervo=acervo,
         ano_inicio=min((f["ano_min"] for f in acervo), default=None),
         # Canonical da home é a RAIZ do domínio: a Transform Rule do

@@ -238,12 +238,36 @@
                         <span class="valor">R$ {{ formatar_valor(materia.valor_rs) }}</span>
                         {%- endif %}
                         {%- for tag in materia.tags %}
+                        {%- if url_busca %}
+                        <a class="tag" href="{{ url_busca }}?q={{ tag | urlencode }}">{{ tag }}</a>
+                        {%- else %}
                         <span class="tag">{{ tag }}</span>
+                        {%- endif %}
                         {%- endfor %}
                     </div>
+                    {%- if url_busca and ocorrencias_acervo %}
+                    {%- for tag in materia.tags if tag in ocorrencias_acervo %}
+                    {%- if loop.first %}
+                    <p class="assunto-acervo">
+                        Este assunto no acervo: <a href="{{ url_busca }}?q={{ tag | urlencode }}">{{ ocorrencias_acervo[tag] }} {{ "diário cita" if ocorrencias_acervo[tag] == 1 else "diários citam" }} "{{ tag }}"</a>
+                    </p>
+                    {%- endif %}
+                    {%- endfor %}
+                    {%- endif %}
                     {%- if materia.pdf_url %}
                     <p class="fonte">
                         Fonte: <a href="{{ materia.pdf_url }}" target="_blank" rel="noopener">diário oficial (PDF)</a>
+                    </p>
+                    {%- endif %}
+                    {%- if url_busca %}
+                    <p class="fonte cta-busca">
+                        {%- if materia.categoria == "Contratos e licitações" %}
+                        Pesquise uma empresa no acervo: <a href="{{ url_busca }}">todas as menções em contratos e licitações</a>.
+                        {%- elif materia.categoria == "Concursos e delegações" %}
+                        Pesquise seu nome nas convocações: <a href="{{ url_busca }}">busque no acervo de diários</a>.
+                        {%- else %}
+                        Monitore publicações com seu nome ou OAB: <a href="{{ url_busca }}">pesquise no acervo</a>.
+                        {%- endif %}
                     </p>
                     {%- endif %}
                 </article>

@@ -17,6 +17,10 @@ import unicodedata
 
 CLASSE_TECNICO = "tecnico"
 CLASSE_GERAL = "geral"
+# microformulário "Outros estados" da home: o frontend envia o termo
+# "interesse_estado: <UF>" e a classe identifica o lead de expansão
+CLASSE_INTERESSE_ESTADO = "interesse_estado"
+PREFIXO_INTERESSE_ESTADO = "interesse_estado:"
 
 RE_CNJ = re.compile(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}")
 RE_OAB = re.compile(r"\boab\b")
@@ -65,6 +69,9 @@ def _parece_nome(norm: str) -> bool:
 def classificar_termos(termos: list[str]) -> str:
     """Classe do lead a partir dos termos buscados na sessão."""
     nomes_distintos: set[str] = set()
+    for termo in termos:
+        if termo.strip().casefold().startswith(PREFIXO_INTERESSE_ESTADO):
+            return CLASSE_INTERESSE_ESTADO
     for termo in termos:
         norm = _normalizar(termo)
         if _e_termo_tecnico(norm):
