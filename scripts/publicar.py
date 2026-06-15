@@ -268,11 +268,21 @@ def _url_privacidade(public_domain: str | None) -> str:
     return "privacidade.html"
 
 
-def gerar_pagina_busca(public_domain: str | None, api_url: str) -> str:
-    """Renderiza a página de busca (form + JS que consome a API no Railway)."""
+def gerar_pagina_busca(
+    public_domain: str | None,
+    api_url: str,
+    diarios_dir: Path = DIARIOS_DIR_DEFAULT,
+) -> str:
+    """Renderiza a página de busca (form + JS que consome a API no Railway).
+
+    `ano_inicio` (1º ano do acervo) vem de `resumo_acervo` — mesma fonte do
+    índice — para o texto "desde <ano>" acompanhar o backfill em vez de
+    ficar hardcoded.
+    """
     url_indice = (
         f"https://{public_domain}/{CHAVE_INDICE}" if public_domain else "index.html"
     )
+    acervo = resumo_acervo(diarios_dir)
     template = _env.get_template("busca.html.j2")
     return template.render(
         busca_api_url=api_url.rstrip("/"),
@@ -282,6 +292,7 @@ def gerar_pagina_busca(public_domain: str | None, api_url: str) -> str:
         url_canonica=(
             f"https://{public_domain}/{CHAVE_BUSCA}" if public_domain else None
         ),
+        ano_inicio=min((f["ano_min"] for f in acervo), default=None),
         analytics_token=_token_analytics(),
     )
 
@@ -714,7 +725,9 @@ def publicar_tudo(
     publicar_pagina_privacidade(gerar_pagina_privacidade(public_domain), r2)
     api_busca = _url_api_busca()
     if api_busca:
-        publicar_pagina_busca(gerar_pagina_busca(public_domain, api_busca), r2)
+        publicar_pagina_busca(
+            gerar_pagina_busca(public_domain, api_busca, diarios_dir), r2,
+        )
         publicar_pagina_cadastro(gerar_pagina_cadastro(public_domain, api_busca), r2)
     publicar_robots_e_sitemap(r2)
     html_indice = gerar_indice(

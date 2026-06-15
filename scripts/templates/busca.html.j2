@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Busca nos Diários · Observatório Roraima</title>
-    <meta name="description" content="Busque nomes e termos em todos os diários oficiais do MPRR e do TJRR arquivados pelo Observatório Roraima desde 2021.">
+    <meta name="description" content="Busque nomes e termos em todos os diários oficiais do MPRR e do TJRR arquivados pelo Observatório Roraima{% if ano_inicio %} desde {{ ano_inicio }}{% endif %}.">
     {% if url_canonica %}
     <link rel="canonical" href="{{ url_canonica }}">
     <meta property="og:title" content="Busca nos Diários · Observatório Roraima">
-    <meta property="og:description" content="Busque nomes e termos em todos os diários oficiais do MPRR e do TJRR desde 2021.">
+    <meta property="og:description" content="Busque nomes e termos em todos os diários oficiais do MPRR e do TJRR{% if ano_inicio %} desde {{ ano_inicio }}{% endif %}.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ url_canonica }}">
     <meta property="og:locale" content="pt_BR">
@@ -278,7 +278,7 @@
                        aria-label="Termo de busca">
                 <button class="principal" type="submit">Buscar</button>
             </form>
-            <p class="dica">Busca em todas as edições do MPRR e do TJRR desde 2021. Acentos são opcionais: "José" e "jose" encontram o mesmo resultado.</p>
+            <p class="dica">Busca em todas as edições do MPRR e do TJRR{% if ano_inicio %} desde {{ ano_inicio }}{% endif %}. Acentos são opcionais: "José" e "jose" encontram o mesmo resultado.</p>
 
             <div id="estado-carregando" class="estado oculto">Buscando…</div>
             <div id="estado-vazio" class="estado oculto">Nenhuma ocorrência encontrada. Tente outra grafia ou menos palavras.</div>
