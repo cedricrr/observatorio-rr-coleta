@@ -1431,6 +1431,33 @@ def test_gerar_indice_sem_env_nao_tem_painel(tmp_path, monkeypatch):
     assert 'class="painel-busca"' not in html  # CSS fica, o elemento não
 
 
+def test_home_faixa_cobertura_em_destaque_independe_da_busca(tmp_path, monkeypatch):
+    # A cobertura histórica do acervo é destaque permanente da home:
+    # aparece mesmo sem a busca implantada (sem SEARCH_API_URL).
+    monkeypatch.delenv("SEARCH_API_URL", raising=False)
+    _criar_jsons_completos(tmp_path, {
+        "mprr": [_reg("2022-04-19", numero=1), _reg("2026-06-10", numero=2)],
+        "tjrr": [_reg("2003-01-03", fonte="tjrr"), _reg("2026-06-15", fonte="tjrr")],
+    })
+
+    html = gerar_indice(tmp_path, public_domain=None)
+
+    # faixa dedicada, presente mesmo com a busca desligada
+    assert 'class="faixa-cobertura"' in html
+    assert 'id="zona-busca"' not in html
+    # período por órgão, em destaque
+    assert "MPRR" in html and "TJRR" in html
+    assert "2022" in html and "2003" in html and "2026" in html
+    # vem antes do conteúdo editorial (topo da página)
+    assert html.index('class="faixa-cobertura"') < html.index('id="conteudo"')
+
+
+def test_home_faixa_cobertura_omitida_sem_acervo(tmp_path, monkeypatch):
+    monkeypatch.delenv("SEARCH_API_URL", raising=False)
+    html = gerar_indice(tmp_path, public_domain=None)  # dir vazio → sem acervo
+    assert 'class="faixa-cobertura"' not in html
+
+
 # =============================================================
 # GRUPO Sessão 13.3 — home com busca em destaque
 # =============================================================

@@ -439,7 +439,10 @@ def gerar_indice(
         hero, destaques, _ = agregar_destaques_recentes(datas, r2)
 
     data_ultima = _formatar_data_pt_br(datas[0]) if datas else None
-    acervo = resumo_acervo(diarios_dir) if _url_api_busca() else []
+    # Acervo sempre computado: a faixa de cobertura histórica é destaque
+    # permanente da home (independe da busca). As seções de busca que também
+    # consomem `acervo` continuam atrás do gate `url_busca`.
+    acervo = resumo_acervo(diarios_dir)
     template = _env.get_template("indice.html.j2")
     return template.render(
         hero=hero,

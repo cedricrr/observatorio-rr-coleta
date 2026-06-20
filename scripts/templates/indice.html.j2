@@ -116,6 +116,83 @@
             letter-spacing: 0.08em;
         }
 
+        /* ============ FAIXA DE COBERTURA DO ACERVO ============ */
+        section.faixa-cobertura {
+            background: var(--cor-primaria);
+            border-radius: 8px;
+            padding: 1.1rem 1.3rem 1.25rem;
+            margin: 0 0 1.5rem;
+        }
+
+        section.faixa-cobertura .rotulo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.13em;
+            color: var(--cor-em-breve);
+            text-align: center;
+            margin-bottom: 0.9rem;
+        }
+
+        section.faixa-cobertura .orgaos-cobertura {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.7rem;
+        }
+
+        section.faixa-cobertura .org {
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 0.35rem 0.9rem;
+            background: rgba(255, 255, 255, 0.07);
+            border-left: 4px solid var(--cor-rule);
+            border-radius: 4px;
+            padding: 0.7rem 1rem;
+        }
+
+        section.faixa-cobertura .org-mprr { border-left-color: var(--cor-mprr); }
+        section.faixa-cobertura .org-tjrr { border-left-color: var(--cor-tjrr); }
+
+        section.faixa-cobertura .sigla {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--cor-fundo);
+            min-width: 3.4rem;
+        }
+
+        section.faixa-cobertura .periodo {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 700;
+            font-size: clamp(1.65rem, 4.5vw, 2.15rem);
+            line-height: 1;
+            letter-spacing: -0.01em;
+            color: #FFFFFF;
+        }
+
+        section.faixa-cobertura .periodo .trav {
+            color: var(--cor-dado);
+            margin: 0 0.12em;
+        }
+
+        section.faixa-cobertura .qtd {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--cor-em-breve);
+            margin-left: auto;
+        }
+
+        @media (min-width: 640px) {
+            section.faixa-cobertura .orgaos-cobertura {
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+            }
+        }
+
         /* ============ HERO ============ */
         section.hero {
             display: grid;
@@ -574,6 +651,21 @@
                 {%- if data_ultima_formatada %}Última edição · {{ data_ultima_formatada }}{% else %}{{ total_edicoes }} {{ "edição" if total_edicoes == 1 else "edições" }}{% endif %}
             </p>
         </header>
+
+        {% if acervo %}
+        <section class="faixa-cobertura" aria-label="Cobertura histórica do acervo">
+            <p class="rotulo">Acervo histórico de diários oficiais</p>
+            <ul class="orgaos-cobertura">
+                {% for f in acervo %}
+                <li class="org org-{{ f.orgao | lower }}">
+                    <span class="sigla">{{ f.orgao }}</span>
+                    <span class="periodo">{{ f.ano_min }}<span class="trav">–</span>{{ f.ano_max }}</span>
+                    <span class="qtd">{{ f.total_formatado }} {{ "edição" if f.total == 1 else "edições" }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
 
         {% if url_busca %}
         <section id="zona-busca" aria-label="Busca no acervo de diários">
