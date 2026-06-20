@@ -186,6 +186,21 @@
             margin-left: auto;
         }
 
+        section.faixa-cobertura .atualizacao {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--cor-em-breve);
+            text-align: center;
+            margin-top: 0.9rem;
+        }
+
+        section.faixa-cobertura .atualizacao strong {
+            color: var(--cor-fundo);
+            font-weight: 600;
+        }
+
         @media (min-width: 640px) {
             section.faixa-cobertura .orgaos-cobertura {
                 grid-template-columns: 1fr 1fr;
@@ -664,6 +679,9 @@
                 </li>
                 {% endfor %}
             </ul>
+            {% if data_ultima_formatada %}
+            <p class="atualizacao">Índice atualizado até a edição de <strong>{{ data_ultima_formatada }}</strong></p>
+            {% endif %}
         </section>
         {% endif %}
 

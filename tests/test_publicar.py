@@ -1452,6 +1452,20 @@ def test_home_faixa_cobertura_em_destaque_independe_da_busca(tmp_path, monkeypat
     assert html.index('class="faixa-cobertura"') < html.index('id="conteudo"')
 
 
+def test_home_faixa_cobertura_mostra_ultima_edicao_indexada(tmp_path, monkeypatch):
+    # A faixa indica até quando o acervo/índice está atualizado.
+    monkeypatch.delenv("SEARCH_API_URL", raising=False)
+    _criar_jsons_completos(tmp_path, {
+        "tjrr": [_reg("2003-01-03", fonte="tjrr"), _reg("2026-06-19", fonte="tjrr")],
+    })
+
+    html = gerar_indice(tmp_path, public_domain=None)
+    faixa = html[html.index('class="faixa-cobertura"'):html.index('id="conteudo"')]
+
+    assert "19 de junho de 2026" in faixa
+    assert "atualiza" in faixa.lower()
+
+
 def test_home_faixa_cobertura_omitida_sem_acervo(tmp_path, monkeypatch):
     monkeypatch.delenv("SEARCH_API_URL", raising=False)
     html = gerar_indice(tmp_path, public_domain=None)  # dir vazio → sem acervo
