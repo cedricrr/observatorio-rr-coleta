@@ -6,7 +6,7 @@ import logging
 import os
 
 import anthropic
-import httpx
+import httpx2
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class ClienteAnthropic:
         extended_thinking: bool = True,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
-        timeout: httpx.Timeout | None = None,
+        timeout: httpx2.Timeout | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
     ):
         if api_key is None and not os.environ.get("ANTHROPIC_API_KEY"):
@@ -50,7 +50,7 @@ class ClienteAnthropic:
         if timeout is None:
             # Ciclo 10.7: teto curto de leitura destrava socket half-open
             # antes de o backfill estagnar (defaults da SDK seguram 600s).
-            timeout = httpx.Timeout(
+            timeout = httpx2.Timeout(
                 self.DEFAULT_TIMEOUT_SECONDS,
                 connect=self.DEFAULT_CONNECT_TIMEOUT_SECONDS,
             )
