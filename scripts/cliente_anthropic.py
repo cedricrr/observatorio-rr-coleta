@@ -99,11 +99,12 @@ class ClienteAnthropic:
                 "type": "enabled",
                 "budget_tokens": self.THINKING_BUDGET_TOKENS,
             }
-        else:
-            # Idempotência (Ciclo 10.1): temperatura determinística só é
-            # aceita pela API sem extended thinking — com thinking ligado a
-            # API exige temperature=1, então omitimos o parâmetro nesse caso.
-            kwargs["temperature"] = self.temperature
+        # Nota: SDK anthropic>=1.0 removeu temperature/top_p/top_k de
+        # messages.create() (TypeError se passado). Ciclo 10.1 aplicava
+        # self.temperature aqui para determinismo sem extended thinking;
+        # esse comportamento não é mais alcançável via SDK e foi removido.
+        # self.temperature é mantido no __init__ por compatibilidade de
+        # assinatura, mas não tem mais efeito sobre a chamada à API.
 
         resposta = self._client.messages.create(**kwargs)
 
