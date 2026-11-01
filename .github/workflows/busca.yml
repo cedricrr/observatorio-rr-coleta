@@ -1,0 +1,210 @@
+name: Busca (CI/CD — api + solr no Railway)
+
+# Fluxo push -> deploy da busca, no espírito "teste -> imagem -> deploy":
+#
+#   push em main (search/**)
+#     -> testes   : ruff + pytest da API (search/api/tests — antes não rodavam em CI)
+#     -> imagens  : build das imagens api e solr, push no GHCR com tag = SHA do commit
+#     -> deploy   : railway up da api (automático) + smoke test em /health
+#
+# O Solr NÃO sobe automaticamente: redeploy reinicia o índice em produção e
+# mudança de schema exige reindexação a partir do R2. Deploy do Solr só por
+# disparo manual (workflow_dispatch, servico=solr ou ambos).
+#
+# Secrets necessários:
+#   RAILWAY_TOKEN   — Project Token do projeto Railway `observatorio-busca`
+#                     (Project Settings -> Tokens, ambiente production)
+#   SEARCH_API_URL  — já existe (usado pelo coletor); usado aqui no smoke test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "search/**"
+      - ".github/workflows/busca.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "search/**"
+      - ".github/workflows/busca.yml"
+  workflow_dispatch:
+    inputs:
+      servico:
+        description: "Serviço a implantar"
+        type: choice
+        options:
+          - api
+          - solr
+          - ambos
+        default: api
+
+permissions:
+  contents: read
+
+# Um deploy por vez; um push novo cancela a execução anterior ainda em curso.
+concurrency:
+  group: busca-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/observatorio-busca
+
+jobs:
+  # ---------------------------------------------------------------- CI
+  mudancas:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      api: ${{ steps.filtro.outputs.api }}
+      solr: ${{ steps.filtro.outputs.solr }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: filtro
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - "search/api/**"
+            solr:
+              - "search/solr/**"
+
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: search/api
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12" # mesma versão da imagem (python:3.12-slim)
+          cache: pip
+          cache-dependency-path: search/api/pyproject.toml
+
+      - name: Instalar dependências
+        run: pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Testes (pytest)
+        run: pytest -q
+
+  imagens:
+    needs: [testes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        servico: [api, solr]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login no GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Em PR só valida que o Dockerfile builda; em main publica a imagem
+      # versionada pelo SHA (referência para auditoria e rollback).
+      - name: Build (e push em main)
+        uses: docker/build-push-action@v6
+        with:
+          context: search/${{ matrix.servico }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.IMAGE_BASE }}-${{ matrix.servico }}:${{ github.sha }}
+            ${{ env.IMAGE_BASE }}-${{ matrix.servico }}:latest
+          cache-from: type=gha,scope=${{ matrix.servico }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.servico }}
+
+  # ---------------------------------------------------------------- CD
+  deploy-api:
+    needs: [mudancas, imagens]
+    if: >-
+      github.event_name != 'pull_request' && (
+        (github.event_name == 'push' && needs.mudancas.outputs.api == 'true') ||
+        (github.event_name == 'workflow_dispatch' &&
+          (inputs.servico == 'api' || inputs.servico == 'ambos'))
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: producao
+      url: ${{ steps.smoke.outputs.url }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      # 5.3.0 quebrou o login por Project Token em CI; fixar até haver correção.
+      - name: Instalar Railway CLI
+        run: npm install -g @railway/cli@5.2.0
+
+      - name: Deploy da api
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up search/api --path-as-root --service api --ci
+
+      - name: Smoke test (/health)
+        id: smoke
+        env:
+          SEARCH_API_URL: ${{ secrets.SEARCH_API_URL }}
+        run: |
+          url="${SEARCH_API_URL%/}"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          # o build terminou, mas o container novo ainda pode estar subindo
+          for i in $(seq 1 18); do
+            if curl -fsS --max-time 10 "$url/health"; then
+              echo
+              echo "API saudável (tentativa $i)."
+              exit 0
+            fi
+            echo "Tentativa $i falhou; aguardando 10s..."
+            sleep 10
+          done
+          echo "::error::/health não respondeu 200 em 3 minutos — verifique o deploy no Railway."
+          exit 1
+
+  deploy-solr:
+    needs: [imagens]
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.servico == 'solr' || inputs.servico == 'ambos')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: producao-solr
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Instalar Railway CLI
+        run: npm install -g @railway/cli@5.2.0
+
+      - name: Deploy do solr
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up search/solr --path-as-root --service solr --ci
+
+      - name: Lembrete
+        run: |
+          echo "::notice::Solr reimplantado. Se o schema mudou, reindexe a partir do R2:"
+          echo "::notice::python -m scripts.backfill_indexacao --retomar"
